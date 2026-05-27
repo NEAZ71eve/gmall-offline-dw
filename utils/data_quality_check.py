@@ -32,7 +32,7 @@ class DataQualityChecker:
                 # 检查是否有数据
                 result = self.run_hdfs_cmd(f'-ls /warehouse/gmall/ods/{table} 2>/dev/null')
                 if 'No such file' in result or not result.strip():
-                    print(f"  ⚠️  表不存在或为空")
+                    print(f"  [!] 表不存在或为空")
                     self.quality_issues.append(f"{table}: 表不存在或为空")
                     self.quality_stats.append((table, 0, 'NO_DATA'))
                     continue
@@ -55,7 +55,7 @@ class DataQualityChecker:
                             except:
                                 pass
 
-                    print(f"  ✓ 数据文件总大小: {total_size:.2f} KB")
+                    print(f"  [OK] 数据文件总大小: {total_size:.2f} KB")
 
                     # 检查数据质量规则
                     rules_passed = []
@@ -69,11 +69,11 @@ class DataQualityChecker:
                     # 规则2: 检查数据完整性（使用 Hive）
                     # 如果有 Hive 环境，可以添加更详细的检查
 
-                    print(f"  ✓ 检查通过: {', '.join(rules_passed)}")
+                    print(f"  [OK] 检查通过: {', '.join(rules_passed)}")
                     self.quality_stats.append((table, total_size, 'OK'))
 
             except Exception as e:
-                print(f"  ✗ 检查失败: {e}")
+                print(f"  [ERROR] 检查失败: {e}")
                 self.quality_issues.append(f"{table}: 检查失败 - {e}")
                 self.quality_stats.append((table, 0, 'ERROR'))
 
@@ -94,12 +94,12 @@ class DataQualityChecker:
             try:
                 result = self.run_hdfs_cmd(f'-ls /warehouse/gmall/dim/{table} 2>/dev/null')
                 if 'No such file' in result or not result.strip():
-                    print(f"  ⚠️  表不存在或为空")
+                    print(f"  [!] 表不存在或为空")
                     self.quality_issues.append(f"{table}: 表不存在或为空")
                     self.quality_stats.append((table, 0, 'NO_DATA'))
                     continue
 
-                print(f"  ✓ 表存在")
+                print(f"  [OK] 表存在")
                 self.quality_stats.append((table, 1, 'OK'))
 
             except Exception as e:
@@ -123,17 +123,17 @@ class DataQualityChecker:
             try:
                 result = self.run_hdfs_cmd(f'-ls /warehouse/gmall/dwd/{table} 2>/dev/null')
                 if 'No such file' in result or not result.strip():
-                    print(f"  ⚠️  表不存在或为空")
+                    print(f"  [!] 表不存在或为空")
                     self.quality_issues.append(f"{table}: 表不存在或为空")
                     self.quality_stats.append((table, 0, 'NO_DATA'))
                     continue
 
-                print(f"  ✓ 表存在")
+                print(f"  [OK] 表存在")
 
                 # 检查分区
                 partitions = self.run_hdfs_cmd(f'-ls /warehouse/gmall/dwd/{table}/dt=* 2>/dev/null')
                 partition_count = len([p for p in partitions.split('\n') if 'dt=' in p])
-                print(f"  ✓ 分区数: {partition_count}")
+                print(f"  [OK] 分区数: {partition_count}")
 
                 if partition_count == 0:
                     self.quality_issues.append(f"{table}: 无有效分区")
@@ -141,7 +141,7 @@ class DataQualityChecker:
                 self.quality_stats.append((table, partition_count, 'OK'))
 
             except Exception as e:
-                print(f"  ✗ 检查失败: {e}")
+                print(f"  [ERROR] 检查失败: {e}")
                 self.quality_issues.append(f"{table}: 检查失败 - {e}")
                 self.quality_stats.append((table, 0, 'ERROR'))
 
@@ -161,16 +161,16 @@ class DataQualityChecker:
             try:
                 result = self.run_hdfs_cmd(f'-ls /warehouse/gmall/dws/{table} 2>/dev/null')
                 if 'No such file' in result or not result.strip():
-                    print(f"  ⚠️  表不存在或为空")
+                    print(f"  [!] 表不存在或为空")
                     self.quality_issues.append(f"{table}: 表不存在或为空")
                     self.quality_stats.append((table, 0, 'NO_DATA'))
                     continue
 
-                print(f"  ✓ 表存在")
+                print(f"  [OK] 表存在")
                 self.quality_stats.append((table, 1, 'OK'))
 
             except Exception as e:
-                print(f"  ✗ 检查失败: {e}")
+                print(f"  [ERROR] 检查失败: {e}")
                 self.quality_issues.append(f"{table}: 检查失败 - {e}")
                 self.quality_stats.append((table, 0, 'ERROR'))
 
@@ -191,12 +191,12 @@ class DataQualityChecker:
             try:
                 result = self.run_hdfs_cmd(f'-ls /warehouse/gmall/ads/{table} 2>/dev/null')
                 if 'No such file' in result or not result.strip():
-                    print(f"  ⚠️  表不存在或为空")
+                    print(f"  [!] 表不存在或为空")
                     self.quality_issues.append(f"{table}: 表不存在或为空")
                     self.quality_stats.append((table, 0, 'NO_DATA'))
                     continue
 
-                print(f"  ✓ 表存在")
+                print(f"  [OK] 表存在")
                 self.quality_stats.append((table, 1, 'OK'))
 
             except Exception as e:
@@ -235,9 +235,9 @@ class DataQualityChecker:
         no_data_count = len([s for s in self.quality_stats if s[2] == 'NO_DATA'])
 
         print(f"  总表数: {total}")
-        print(f"  ✓ 正常: {ok_count}")
-        print(f"  ✗ 错误: {error_count}")
-        print(f"  ⚠️  无数据: {no_data_count}")
+        print(f"  [OK] 正常: {ok_count}")
+        print(f"  [ERROR] 错误: {error_count}")
+        print(f"  [!] 无数据: {no_data_count}")
 
         # 问题列表
         if self.quality_issues:
@@ -245,7 +245,7 @@ class DataQualityChecker:
             for i, issue in enumerate(self.quality_issues, 1):
                 print(f"  {i}. {issue}")
         else:
-            print("\n✓ 所有数据质量检查通过！")
+            print("\n[OK] 所有数据质量检查通过！")
 
         # 详细统计
         print("\n【详细统计】")
@@ -253,9 +253,9 @@ class DataQualityChecker:
         print("-" * 70)
         for table, value, status in self.quality_stats:
             status_text = {
-                'OK': '✓ 正常',
-                'ERROR': '✗ 错误',
-                'NO_DATA': '⚠️ 无数据'
+                'OK': '[OK] 正常',
+                'ERROR': '[ERROR] 错误',
+                'NO_DATA': '[!] 无数据'
             }.get(status, status)
 
             if status == 'OK':
@@ -276,7 +276,7 @@ class DataQualityChecker:
             print("  1. 检查数据源是否正常")
             print("  2. 确认 ETL 任务是否正常执行")
         if ok_count == total:
-            print("  ✓ 数据质量良好，继续保持！")
+            print("  [OK] 数据质量良好，继续保持！")
 
         print("\n" + "=" * 80)
 
