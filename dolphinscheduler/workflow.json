@@ -1,0 +1,134 @@
+{
+    "workflowName": "gmall_etl_daily",
+    "description": "电商数仓每日ETL工作流",
+    "schedule": "0 0 2 * * ?",
+    "processInstancePriority": 10,
+    "workerGroup": "default",
+    "timeout": 0,
+    "tasks": [
+        {
+            "name": "datax_ods_user_info",
+            "taskType": "SHELL",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "script": "/opt/datax/bin/datax.py -p \"-Ddt=${system.biz.date}\" /mnt/d/s/作业/datax/ods_user_info.json"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0
+        },
+        {
+            "name": "datax_ods_order_info",
+            "taskType": "SHELL",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "script": "/opt/datax/bin/datax.py -p \"-Ddt=${system.biz.date}\" /mnt/d/s/作业/datax/ods_order_info.json"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0,
+            "dependsOn": ["datax_ods_user_info"]
+        },
+        {
+            "name": "datax_ods_order_detail",
+            "taskType": "SHELL",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "script": "/opt/datax/bin/datax.py -p \"-Ddt=${system.biz.date}\" /mnt/d/s/作业/datax/ods_order_detail.json"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0,
+            "dependsOn": ["datax_ods_order_info"]
+        },
+        {
+            "name": "hive_dim_user",
+            "taskType": "HIVE",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "sql": "SET hive.exec.dynamic.partition.mode=nonstrict;\nINSERT OVERWRITE TABLE gmall_dim.dim_user PARTITION(dt='${system.biz.date}')\nSELECT id, login_name, nick_name, name, phone_num, email, head_img, user_level, birthday, gender, create_time, status, start_date, end_date FROM gmall_ods.ods_user_info WHERE dt='${system.biz.date}'",
+                "hiveSqlType": "NON_QUERY"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0,
+            "dependsOn": ["datax_ods_user_info"]
+        },
+        {
+            "name": "hive_dwd_order_detail",
+            "taskType": "HIVE",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "sql": "SET hive.exec.dynamic.partition.mode=nonstrict;\nINSERT OVERWRITE TABLE gmall_dwd.dwd_order_detail PARTITION(dt='${system.biz.date}')\nSELECT id, order_id, sku_id, sku_name, img_url, order_price, sku_num, create_time, source_type, source_id FROM gmall_ods.ods_order_detail WHERE dt='${system.biz.date}'",
+                "hiveSqlType": "NON_QUERY"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0,
+            "dependsOn": ["datax_ods_order_detail", "hive_dim_user"]
+        },
+        {
+            "name": "hive_dws_gmv_stats",
+            "taskType": "HIVE",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "sql": "SET hive.exec.dynamic.partition.mode=nonstrict;\nINSERT OVERWRITE TABLE gmall_dws.dws_gmv_stats PARTITION(dt='${system.biz.date}')\nSELECT date_id, SUM(order_count) as order_count, SUM(user_count) as user_count, SUM(gmv) as gmv FROM gmall_dwd.dwd_order_info WHERE dt='${system.biz.date}' GROUP BY date_id",
+                "hiveSqlType": "NON_QUERY"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0,
+            "dependsOn": ["hive_dwd_order_detail"]
+        },
+        {
+            "name": "hive_ads_gmv_day",
+            "taskType": "HIVE",
+            "params": {
+                "resourceList": [],
+                "localParams": [],
+                "sql": "INSERT OVERWRITE TABLE gmall_ads.ads_gmv_day\nSELECT '${system.biz.date}' as dt, 1 as recent_days, SUM(gmv) as gmv, SUM(order_count) as order_count, SUM(user_count) as user_count FROM gmall_dws.dws_gmv_stats WHERE dt='${system.biz.date}'",
+                "hiveSqlType": "NON_QUERY"
+            },
+            "taskPriority": 10,
+            "failRetryTimes": 3,
+            "failRetryInterval": 60,
+            "timeoutFlag": false,
+            "timeoutNotifyStrategy": "NONE",
+            "delayTime": 0,
+            "dependsOn": ["hive_dws_gmv_stats"]
+        }
+    ],
+    "taskRelationList": [
+        {"preTaskCode": 1, "postTaskCode": 2},
+        {"preTaskCode": 2, "postTaskCode": 3},
+        {"preTaskCode": 1, "postTaskCode": 4},
+        {"preTaskCode": 3, "postTaskCode": 5},
+        {"preTaskCode": 4, "postTaskCode": 5},
+        {"preTaskCode": 5, "postTaskCode": 6},
+        {"preTaskCode": 6, "postTaskCode": 7}
+    ]
+}
