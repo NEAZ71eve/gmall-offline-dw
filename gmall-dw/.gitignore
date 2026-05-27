@@ -1,0 +1,48 @@
+
+# ============================================
+# Git Ignore Configuration
+# ============================================
+
+# Logs
+*.log
+logs/
+
+# Hadoop/Hive temporary files
+*.tmp
+*.temp
+._*
+
+# DataX logs
+datax/logs/
+datax/plugin_reader/
+datax/plugin_writer/
+
+# Azkaban logs
+azkaban/logs/
+
+# Python virtual environment
+venv/
+.env/
+*.pyc
+__pycache__/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Configuration files with passwords
+*.secret
+*.password
+*.key

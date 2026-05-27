@@ -1,0 +1,33 @@
+
+{
+    "job": {
+        "content": [
+            {
+                "reader": {
+                    "name": "mysqlreader",
+                    "parameter": {
+                        "column": ["id", "consignee", "consignee_tel", "total_amount", "order_status", "user_id", "payment_way", "delivery_address", "order_comment", "out_trade_no", "trade_body", "create_time", "operate_time", "province_id"],
+                        "connection": [{"jdbcUrl": ["jdbc:mysql://localhost:3307/gmall"], "table": ["order_info"]}],
+                        "password": "000000",
+                        "username": "root",
+                        "where": "create_time >= '${dt}' 00:00:00 AND create_time < '${dt}' 23:59:59"
+                    }
+                },
+                "writer": {
+                    "name": "hdfswriter",
+                    "parameter": {
+                        "column": [{"name": "id", "type": "string"}, {"name": "consignee", "type": "string"}, {"name": "consignee_tel", "type": "string"}, {"name": "total_amount", "type": "decimal(16,2)"}, {"name": "order_status", "type": "string"}, {"name": "user_id", "type": "string"}, {"name": "payment_way", "type": "string"}, {"name": "delivery_address", "type": "string"}, {"name": "order_comment", "type": "string"}, {"name": "out_trade_no", "type": "string"}, {"name": "trade_body", "type": "string"}, {"name": "create_time", "type": "string"}, {"name": "operate_time", "type": "string"}, {"name": "province_id", "type": "string"}],
+                        "compress": "gzip",
+                        "defaultFS": "hdfs://localhost:9000",
+                        "fieldDelimiter": "\\t",
+                        "fileName": "order_info",
+                        "fileType": "text",
+                        "path": "/origin_data/gmall/db/order_info_inc/${dt}",
+                        "writeMode": "append"
+                    }
+                }
+            }
+        ],
+        "setting": {"speed": {"channel": "3"}}
+    }
+}

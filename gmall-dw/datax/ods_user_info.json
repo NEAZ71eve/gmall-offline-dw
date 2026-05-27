@@ -1,0 +1,33 @@
+
+{
+    "job": {
+        "content": [
+            {
+                "reader": {
+                    "name": "mysqlreader",
+                    "parameter": {
+                        "column": ["id", "login_name", "nick_name", "name", "phone_num", "email", "head_img", "user_level", "birthday", "gender", "create_time", "operate_time", "status"],
+                        "connection": [{"jdbcUrl": ["jdbc:mysql://localhost:3307/gmall"], "table": ["user_info"]}],
+                        "password": "000000",
+                        "username": "root",
+                        "where": "create_time >= '${dt}' 00:00:00 AND create_time < '${dt}' 23:59:59"
+                    }
+                },
+                "writer": {
+                    "name": "hdfswriter",
+                    "parameter": {
+                        "column": [{"name": "id", "type": "string"}, {"name": "login_name", "type": "string"}, {"name": "nick_name", "type": "string"}, {"name": "name", "type": "string"}, {"name": "phone_num", "type": "string"}, {"name": "email", "type": "string"}, {"name": "head_img", "type": "string"}, {"name": "user_level", "type": "string"}, {"name": "birthday", "type": "string"}, {"name": "gender", "type": "string"}, {"name": "create_time", "type": "string"}, {"name": "operate_time", "type": "string"}, {"name": "status", "type": "string"}],
+                        "compress": "gzip",
+                        "defaultFS": "hdfs://localhost:9000",
+                        "fieldDelimiter": "\\t",
+                        "fileName": "user_info",
+                        "fileType": "text",
+                        "path": "/origin_data/gmall/db/user_info_full/${dt}",
+                        "writeMode": "append"
+                    }
+                }
+            }
+        ],
+        "setting": {"speed": {"channel": "3"}}
+    }
+}

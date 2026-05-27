@@ -1,0 +1,21 @@
+
+{
+    "project_name": "gmall-dw",
+    "description": "尚硅谷电商离线数仓项目 - Trae 适配版本",
+    "framework": "offline-datawarehouse",
+    "tech_stack": ["Hadoop", "Hive", "MySQL", "DataX", "Azkaban"],
+    "data_layers": ["ODS", "DIM", "DWD", "DWS", "ADS"],
+    "time_partition": "dt",
+    "warehouse_path": "/warehouse/gmall",
+    "default_db": "gmall",
+    "settings": {
+        "hive": {
+            "exec_dynamic_partition": true,
+            "exec_dynamic_partition_mode": "nonstrict"
+        },
+        "schedule": {
+            "type": "azkaban",
+            "cron": "0 1 * * *"
+        }
+    }
+}

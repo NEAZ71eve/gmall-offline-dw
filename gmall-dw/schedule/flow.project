@@ -1,0 +1,107 @@
+
+# ============================================
+# Azkaban Flow 配置
+# ============================================
+
+nodes:
+  - name: start
+    type: noop
+    config:
+      node.type: start
+
+  # ============================================
+  # 阶段1: 数据采集 (DataX)
+  # ============================================
+  
+  - name: datax_user_info
+    type: command
+    dependsOn:
+      - start
+    config:
+      command: |
+        python /opt/datax/bin/datax.py /workspace/gmall-dw/datax/ods_user_info.json -p "-Ddt=${dt}"
+
+  - name: datax_order_info
+    type: command
+    dependsOn:
+      - start
+    config:
+      command: |
+        python /opt/datax/bin/datax.py /workspace/gmall-dw/datax/ods_order_info.json -p "-Ddt=${dt}"
+
+  - name: datax_order_detail
+    type: command
+    dependsOn:
+      - start
+    config:
+      command: |
+        python /opt/datax/bin/datax.py /workspace/gmall-dw/datax/ods_order_detail.json -p "-Ddt=${dt}"
+
+  # ============================================
+  # 阶段2: ODS层加载
+  # ============================================
+  
+  - name: load_ods_user_info
+    type: hive
+    dependsOn:
+      - datax_user_info
+    config:
+      hive.script: |
+        ALTER TABLE gmall_ods.ods_user_info ADD PARTITION(dt='${dt}') 
+        LOCATION '/origin_data/gmall/db/user_info_full/${dt}';
+
+  - name: load_ods_order_info
+    type: hive
+    dependsOn:
+      - datax_order_info
+    config:
+      hive.script: |
+        ALTER TABLE gmall_ods.ods_order_info ADD PARTITION(dt='${dt}') 
+        LOCATION '/origin_data/gmall/db/order_info_inc/${dt}';
+
+  - name: load_ods_order_detail
+    type: hive
+    dependsOn:
+      - datax_order_detail
+    config:
+      hive.script: |
+        ALTER TABLE gmall_ods.ods_order_detail ADD PARTITION(dt='${dt}') 
+        LOCATION '/origin_data/gmall/db/order_detail_inc/${dt}';
+
+  # ============================================
+  # 阶段3: ETL处理
+  # ============================================
+  
+  - name: etl_daily
+    type: hive
+    dependsOn:
+      - load_ods_user_info
+      - load_ods_order_info
+      - load_ods_order_detail
+    config:
+      hive.script: |
+        set hivevar dt='${dt}';
+        source /workspace/gmall-dw/hive/etl_daily.sql;
+
+  # ============================================
+  # 阶段4: 数据质量检查
+  # ============================================
+  
+  - name: quality_check
+    type: command
+    dependsOn:
+      - etl_daily
+    config:
+      command: |
+        hive -e "SELECT COUNT(*) FROM gmall_ads.ads_gmv_day WHERE dt='${dt}';"
+
+  # ============================================
+  # 阶段5: 结束
+  # ============================================
+  
+  - name: end
+    type: noop
+    dependsOn:
+      - quality_check
+    config:
+      node.type: end
