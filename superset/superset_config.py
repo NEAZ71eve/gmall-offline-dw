@@ -1,176 +1,140 @@
-import os
+# Apache Superset 配置文件
+# 生产级配置
 
-# ============================================
-# Superset 基础配置
-# ============================================
+import os
+from datetime import timedelta
+
+# 基础配置
+SECRET_KEY = 'gmall_superset_secret_key_2024'
+SQLALCHEMY_DATABASE_URI = 'sqlite:////opt/superset/superset.db'
 
 # 安全配置
-SECRET_KEY = 'gmall_superset_secret_key_2024_production'
-WTF_CSRF_ENABLED = True
-WTF_CSRF_TIME_LIMIT = 3600
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_HTTPONLY = True
+PERMANENT_SESSION_LIFETIME = timedelta(days=1)
 
-# Web服务器配置
-WEBSERVER_PORT = 8088
-WEBSERVER_TIMEOUT = 60
-WEBSERVER_WORKER_MULTIPLIER = 1
-WEBSERVER_NUM_WORKERS = 4
-
-# 数据库连接配置
-SQLALCHEMY_DATABASE_URI = 'postgresql://superset:superset@localhost:5432/superset'
-SQLALCHEMY_POOL_SIZE = 5
-SQLALCHEMY_MAX_OVERFLOW = 10
-SQLALCHEMY_POOL_TIMEOUT = 30
-SQLALCHEMY_POOL_RECYCLE = 3600
-
-# 数据查询配置
-ROW_LIMIT = 50000
-SQL_MAX_ROW = 100000
-TIMEOUT = 300
-SUPERSET_WORK_TIME = int(TIMEOUT)
-
-# ============================================
 # 缓存配置
-# ============================================
-
 CACHE_CONFIG = {
     'CACHE_TYPE': 'RedisCache',
-    'CACHE_REDIS_URL': 'redis://localhost:6379/1',
-    'CACHE_KEY_PREFIX': 'superset_',
     'CACHE_DEFAULT_TIMEOUT': 300,
+    'CACHE_KEY_PREFIX': 'superset_',
+    'CACHE_REDIS_URL': 'redis://localhost:6379/0',
 }
 
-DATA_CACHE_CONFIG = CACHE_CONFIG
-
-# ============================================
-# 功能开关
-# ============================================
-
-FEATURE_FLAGS = {
-    'ENABLE_TEMPLATE_PROCESSING': True,
-    'DASHBOARD_RBAC': True,
-    'ENABLE_JAVASCRIPT_CONTROLS': True,
-    'ALLOW_FULL_TABLE Viz': True,
-    'DASHBOARD_NATIVE_FILTERS': True,
-    'ESTIMATE_QUERY_COST': True,
-    'ENABLE_EXPLORE_DRAG_DROP': True,
-    'ENABLE_DND_WITH_CLICK_VIZ': True,
-    'USE_ANALAGOUS_COLORS': True,
-    'RISON_SHOW_DASHBOARD_ALERTS': True,
-}
-
-# ============================================
-# 地图配置
-# ============================================
-
-MAPBOX_API_KEY = os.environ.get('MAPBOX_API_KEY', '')
-
-# ============================================
-# 日志配置
-# ============================================
-
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'default': {
-            'format': '%(asctime)s:%(levelname)s:%(name)s:%(message)s',
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'default',
-            'stream': 'ext://sys.stdout',
-        },
-        'file': {
-            'class': 'logging.FileHandler',
-            'formatter': 'default',
-            'filename': '/var/log/superset/superset.log',
-        },
-    },
-    'loggers': {
-        'superset': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-}
-
-# ============================================
-# Celery异步任务配置
-# ============================================
-
+# 异步任务配置
 class CeleryConfig:
-    BROKER_URL = 'redis://localhost:6379/2'
+    BROKER_URL = 'redis://localhost:6379/1'
+    CELERY_RESULT_BACKEND = 'redis://localhost:6379/1'
     CELERY_IMPORTS = (
         'superset.sql_lab',
         'superset.tasks',
-        'superset.tasks.scheduler',
     )
-    CELERY_RESULT_BACKEND = 'redis://localhost:6379/3'
+    CELERY_TASK_PROTOCOL = 1
+    CELERYD_PREFETCH_MULTIPLIER = 10
+    CELERY_ACKS_LATE = True
     CELERY_ANNOTATIONS = {
-        'superset.sql_lab.get_sql_results': {
+        'sql_lab.get_sql_results': {
             'rate_limit': '100/s',
         },
-        'superset.tasks.sync_dashboards': {
-            'rate_limit': '1/h',
+        'email_reports.send': {
+            'rate_limit': '1/s',
+            'time_limit': 120,
+            'soft_time_limit': 150,
         },
     }
-    CELERYD_CONCURRENCY = 4
-    CELERY_TIMEZONE = 'Asia/Shanghai'
 
 CELERY_CONFIG = CeleryConfig
 
-# ============================================
-# 认证配置
-# ============================================
-
-AUTH_TYPE = 1
-AUTH_USER_REGISTRATION = True
-AUTH_USER_REGISTRATION_ROLE = 'Public'
-PUBLIC_ROLE_LIKE_GAMMA = True
-
-# ============================================
-# 跨域配置
-# ============================================
-
-ENABLE_CORS = True
-CORS_OPTIONS = {
-    'supports_credentials': True,
-    'allow_headers': ['*'],
-    'allow_methods': ['*'],
-    'expose_headers': ['*'],
+# 特性开关
+FEATURE_FLAGS = {
+    'ENABLE_TEMPLATE_PROCESSING': True,
+    'DASHBOARD_RBAC': True,
+    'ENABLE_EXPLORE_JSON_CSRF_PROTECTION': True,
 }
 
-# ============================================
-# 主题和UI配置
-# ============================================
-
-APP_ICON = '/static/assets/images/superset-logo-horiz.png'
-APP_NAME = '电商数仓数据平台'
-
-CUSTOM_SECURITY_HEADERS = {
-    'X-Frame-Options': 'ALLOW',
-    'X-Content-Type-Options': 'nosniff',
+# 数据库连接池配置
+SQLALCHEMY_ENGINE_OPTIONS = {
+    'pool_size': 50,
+    'max_overflow': 100,
+    'pool_timeout': 30,
+    'pool_recycle': 1800,
 }
 
-# ============================================
-# Hive/PyHive配置
-# ============================================
+# 上传配置
+UPLOAD_FOLDER = '/tmp/superset_uploads'
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
 
-from sqlalchemy.engine import Engine
-from sqlalchemy import event
+# 时间格式
+DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+DATE_FORMAT = '%Y-%m-%d'
 
-PYHIVE_TIMEOUT = 300
-HIVE_POLL_INTERVAL = 1
-HIVE_MAX_POLL_INTERVAL = 60
+# 日志配置
+LOG_LEVEL = 'INFO'
+LOG_FILE = '/opt/superset/logs/superset.log'
+
+# 图表配置
+DEFAULT_RENDERING_TIMEOUT = 30
+MAX_ROWS_TO_DISPLAY = 10000
+MAX_SERIES_PER_CHART = 100
+
+# 国际化
+BABEL_DEFAULT_LOCALE = 'zh'
+BABEL_DEFAULT_TIMEZONE = 'Asia/Shanghai'
 
 # 数据源配置
 PRESELECTED_SCHEMAS = {
-    'gmall_ods': ['user_info', 'order_info', 'order_detail'],
-    'gmall_dim': ['dim_user', 'dim_sku', 'dim_time'],
-    'gmall_dwd': ['dwd_order_detail', 'dwd_order_info'],
-    'gmall_dws': ['dws_gmv_stats', 'dws_user_stats', 'dws_sku_stats'],
-    'gmall_ads': ['ads_gmv_day', 'ads_sku_sales_rank', 'ads_user_retention', 'ads_conversion_rate'],
+    'gmall_ods': [
+        'ods_user_info',
+        'ods_order_info', 
+        'ods_order_detail',
+        'ods_sku_info',
+        'ods_activity_info',
+        'ods_coupon_info',
+    ],
+    'gmall_dim': [
+        'dim_user',
+        'dim_sku',
+        'dim_time',
+        'dim_province',
+        'dim_trademark',
+    ],
+    'gmall_dwd': [
+        'dwd_order_detail',
+        'dwd_order_info',
+        'dwd_payment_info',
+        'dwd_action',
+        'dwd_order_refund',
+    ],
+    'gmall_dws': [
+        'dws_gmv_stats',
+        'dws_user_action_stats',
+        'dws_sku_stats',
+        'dws_user_stats',
+        'dws_province_stats',
+    ],
+    'gmall_ads': [
+        'ads_gmv_day',
+        'ads_user_retention',
+        'ads_sku_sales_rank',
+        'ads_conversion_rate',
+        'ads_user_repurchase_rate',
+        'ads_user_activity',
+        'ads_category_sale_analysis',
+        'ads_province_sale',
+    ],
 }
+
+# SQL Lab 配置
+SQLLAB_DEFAULT_DBID = None
+SQLLAB_TIMEOUT = 600
+SQLLAB_ASYNC_TIME_LIMIT_SEC = 3600
+SQLLAB_MAX_ROW = 10000
+SQLLAB_CTAS_NO_LIMIT = True
+
+# 仪表盘配置
+DASHBOARD_CROSS_FILTERS = True
+DASHBOARD_NATIVE_FILTERS = True
+
+# 告警配置
+ALERT_REPORTS_NOTIFICATION_DRY_RUN = False
+ALERT_REPORTS_ENABLE = True

@@ -1,0 +1,327 @@
+# DolphinScheduler ETL 工作流配置
+
+# ============================================================================
+# 工作流定义
+# ============================================================================
+
+workflow:
+  name: "gmall_etl_daily"
+  description: "电商数仓每日ETL工作流"
+  project_name: "gmall"
+  tenant_code: "admin"
+  timezone: "Asia/Shanghai"
+  execution_type: PARALLEL
+  fail_retry_times: 2
+  fail_retry_interval: 300
+  timeout: 3600
+
+# ============================================================================
+# 工作流节点定义
+# ============================================================================
+
+nodes:
+  # 1. 清理昨天的数据（如果需要重跑）
+  - id: clean_yesterday_data
+    name: "清理昨日数据"
+    type: SHELL
+    description: "清理昨日的Hive分区数据"
+    run_flag: RUNNING
+    retry_times: 1
+    retry_interval: 60
+    timeout: 600
+    params:
+      biz_date: "${system.biz.date}"
+    script: |
+      #!/bin/bash
+      # 清理DWD层数据
+      hive -e "ALTER TABLE gmall_dwd.dwd_order_info DROP IF EXISTS PARTITION(dt='${biz_date}')"
+      hive -e "ALTER TABLE gmall_dwd.dwd_order_detail DROP IF EXISTS PARTITION(dt='${biz_date}')"
+
+      # 清理DWS层数据
+      hive -e "ALTER TABLE gmall_dws.dws_gmv_stats DROP IF EXISTS PARTITION(dt='${biz_date}')"
+      hive -e "ALTER TABLE gmall_dws.dws_user_action_stats DROP IF EXISTS PARTITION(dt='${biz_date}')"
+
+      # 清理ADS层数据
+      hive -e "ALTER TABLE gmall_ads.ads_gmv_day DROP IF EXISTS PARTITION(dt='${biz_date}')"
+      hive -e "ALTER TABLE gmall_ads.ads_user_retention DROP IF EXISTS PARTITION(dt='${biz_date}')"
+      hive -e "ALTER TABLE gmall_ads.ads_sku_sales_rank DROP IF EXISTS PARTITION(dt='${biz_date}')"
+      hive -e "ALTER TABLE gmall_ads.ads_conversion_rate DROP IF EXISTS PARTITION(dt='${biz_date}')"
+
+  # 2. ODS -> DIM（维度表构建）
+  - id: etl_ods_to_dim
+    name: "ODS→DIM"
+    type: HIVE
+    description: "从ODS层同步数据到DIM层（拉链表更新）"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      -- 调用ETL脚本
+      SOURCE /opt/gmall/gmall-dw/hive/etl_ods_to_dim.sql;
+
+  # 3. ODS -> DWD（数据清洗）
+  - id: etl_ods_to_dwd
+    name: "ODS→DWD"
+    type: HIVE
+    description: "从ODS层清洗数据到DWD层"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      -- 调用ETL脚本
+      SOURCE /opt/gmall/gmall-dw/hive/etl_ods_to_dwd.sql;
+
+  # 4. DWD -> DWS（数据汇总）
+  - id: etl_dwd_to_dws
+    name: "DWD→DWS"
+    type: HIVE
+    description: "从DWD层汇总数据到DWS层"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 2400
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      -- 调用ETL脚本
+      SOURCE /opt/gmall/gmall-dw/hive/etl_dwd_to_dws.sql;
+
+  # 5. DWS -> ADS（指标计算）
+  - id: etl_dws_to_ads
+    name: "DWS→ADS"
+    type: HIVE
+    description: "从DWS层计算指标到ADS层"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      -- 调用ETL脚本
+      SOURCE /opt/gmall/gmall-dw/hive/etl_dws_to_ads.sql;
+
+  # 6. 数据质量检查
+  - id: data_quality_check
+    name: "数据质量检查"
+    type: PYTHON
+    description: "检查各层数据质量"
+    run_flag: RUNNING
+    retry_times: 1
+    retry_interval: 60
+    timeout: 600
+    params:
+      biz_date: "${system.biz.date}"
+    python_script: |
+      import sys
+      sys.path.append('/opt/gmall/utils')
+
+      from data_quality_validator import DataQualityValidator
+
+      validator = DataQualityValidator()
+      result = validator.validate_all()
+
+      if not result:
+          print("数据质量检查失败")
+          sys.exit(1)
+      else:
+          print("数据质量检查通过")
+          sys.exit(0)
+
+  # 7. 发送通知
+  - id: send_notification
+    name: "发送通知"
+    type: SHELL
+    description: "发送ETL完成通知"
+    run_flag: RUNNING
+    retry_times: 0
+    retry_interval: 0
+    timeout: 60
+    params:
+      biz_date: "${system.biz.date}"
+      success: "${workflow.success}"
+    script: |
+      #!/bin/bash
+
+      if [ "${success}" = "true" ]; then
+          # 发送成功通知
+          curl -s -X POST "${DINGTALK_WEBHOOK}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                  \"msgtype\": \"markdown\",
+                  \"markdown\": {
+                      \"title\": \"✅ ETL任务完成通知\",
+                      \"text\": \"## ✅ ETL任务完成\\n\\n**日期**: ${biz_date}\\n**状态**: 成功\\n**执行时间**: $(date '+%Y-%m-%d %H:%M:%S')\"
+                  }
+              }"
+      else
+          # 发送失败通知
+          curl -s -X POST "${DINGTALK_WEBHOOK}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                  \"msgtype\": \"markdown\",
+                  \"markdown\": {
+                      \"title\": \"❌ ETL任务失败通知\",
+                      \"text\": \"## ❌ ETL任务失败\\n\\n**日期**: ${biz_date}\\n**状态**: 失败\\n**执行时间**: $(date '+%Y-%m-%d %H:%M:%S')\\n**建议**: 请检查DolphinScheduler控制台\"
+                  }
+              }"
+      fi
+
+# ============================================================================
+# 节点依赖关系
+# ============================================================================
+
+dependencies:
+  # 清理数据 -> ODS→DIM
+  - from_node: clean_yesterday_data
+    to_node: etl_ods_to_dim
+
+  # ODS→DIM -> ODS→DWD（维度表必须先完成）
+  - from_node: etl_ods_to_dim
+    to_node: etl_ods_to_dwd
+
+  # ODS→DWD -> DWD→DWS（明细数据必须先完成）
+  - from_node: etl_ods_to_dwd
+    to_node: etl_dwd_to_dws
+
+  # DWD→DWS -> DWS→ADS（汇总数据必须先完成）
+  - from_node: etl_dwd_to_dws
+    to_node: etl_dws_to_ads
+
+  # DWS→ADS -> 数据质量检查（指标计算完成后检查）
+  - from_node: etl_dws_to_ads
+    to_node: data_quality_check
+
+  # 数据质量检查 -> 发送通知（无论成功失败都发送通知）
+  - from_node: data_quality_check
+    to_node: send_notification
+    relation_type: ALL
+
+# ============================================================================
+# 定时调度配置
+# ============================================================================
+
+schedule:
+  type: CRON
+  cron_expression: "0 2 * * ?" # 每天凌晨2点执行
+  start_time: "2024-01-01 00:00:00"
+  end_time: "2099-12-31 23:59:59"
+  timezone: "Asia/Shanghai"
+  execution_timeout: 7200 # 2小时超时
+  concurrent: false # 不允许并发执行
+  queue: "default"
+
+# ============================================================================
+# 告警配置
+# ============================================================================
+
+alerts:
+  # 任务失败告警
+  - id: task_fail_alert
+    name: "ETL任务失败告警"
+    type: TASK_FAILURE
+    level: ERROR
+    receivers:
+      - type: DINGTALK
+        webhook: "${DINGTALK_WEBHOOK}"
+        message: |
+          ## ❌ ETL任务失败
+          **任务名称**: ${task.name}
+          **工作流**: ${workflow.name}
+          **日期**: ${system.biz.date}
+          **错误信息**: ${task.error_message}
+          **重试次数**: ${task.retry_count}
+      - type: EMAIL
+        to: "admin@example.com"
+        subject: "[ETL告警] ${workflow.name} - ${task.name} 失败"
+        content: |
+          任务失败通知
+
+          工作流: ${workflow.name}
+          任务名称: ${task.name}
+          日期: ${system.biz.date}
+          错误信息: ${task.error_message}
+
+  # 任务超时告警
+  - id: task_timeout_alert
+    name: "ETL任务超时告警"
+    type: TASK_TIMEOUT
+    level: WARN
+    receivers:
+      - type: DINGTALK
+        webhook: "${DINGTALK_WEBHOOK}"
+        message: |
+          ## ⚠️ ETL任务超时
+          **任务名称**: ${task.name}
+          **工作流**: ${workflow.name}
+          **日期**: ${system.biz.date}
+          **超时时间**: ${task.timeout}秒
+
+  # 工作流失败告警
+  - id: workflow_fail_alert
+    name: "ETL工作流失败告警"
+    type: WORKFLOW_FAILURE
+    level: ERROR
+    receivers:
+      - type: DINGTALK
+        webhook: "${DINGTALK_WEBHOOK}"
+        message: |
+          ## ❌ ETL工作流失败
+          **工作流名称**: ${workflow.name}
+          **日期**: ${system.biz.date}
+          **失败节点**: ${workflow.failed_task_names}
+          **执行次数**: ${workflow.execution_count}
+
+# ============================================================================
+# 资源配置
+# ============================================================================
+
+resources:
+  queue: "default"
+  worker_group: "default"
+  cpu: 2
+  memory: 4096 # MB
+  disk: 10240 # MB
+
+# ============================================================================
+# 环境变量
+# ============================================================================
+
+env:
+  - key: HADOOP_HOME
+    value: "/opt/hadoop"
+  - key: HIVE_HOME
+    value: "/opt/hive"
+  - key: SPARK_HOME
+    value: "/opt/spark"
+  - key: PATH
+    value: "${HADOOP_HOME}/bin:${HIVE_HOME}/bin:${SPARK_HOME}/bin:${PATH}"
+  - key: DINGTALK_WEBHOOK
+    value: "${DINGTALK_WEBHOOK}"
+
+# ============================================================================
+# 输出配置
+# ============================================================================
+
+output:
+  - type: LOG
+    path: "/opt/gmall/logs/etl/${workflow.name}_${system.biz.date}.log"
+    retention_days: 30

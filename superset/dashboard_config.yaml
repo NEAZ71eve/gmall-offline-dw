@@ -1,0 +1,360 @@
+# 电商数据大屏仪表板配置
+
+# ============================================================================
+# 仪表板结构定义
+# ============================================================================
+
+dashboard:
+  name: "电商业务数据大屏"
+  description: "实时展示电商业务核心指标"
+  refresh_interval: 300 # 5分钟刷新一次
+  layout:
+    rows: 12
+    columns: 24
+
+# ============================================================================
+# 图表配置
+# ============================================================================
+
+charts:
+  # 第一行：核心指标卡片
+  - id: gmv_total
+    name: "今日GMV"
+    type: number
+    position:
+      row: 0
+      col: 0
+      width: 6
+      height: 2
+    datasource: ads_gmv_day
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: gmv
+            table: ads_gmv_day
+          aggregate: SUM
+          label: GMV
+      filters:
+        - col: date_id
+          op: ==
+          val: ${today}
+      format:
+        prefix: "¥"
+        decimals: 2
+        thousand_separator: ","
+
+  - id: order_count
+    name: "今日订单"
+    type: number
+    position:
+      row: 0
+      col: 6
+      width: 6
+      height: 2
+    datasource: ads_gmv_day
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: order_count
+            table: ads_gmv_day
+          aggregate: SUM
+          label: 订单数
+      filters:
+        - col: date_id
+          op: ==
+          val: ${today}
+
+  - id: user_count
+    name: "今日用户"
+    type: number
+    position:
+      row: 0
+      col: 12
+      width: 6
+      height: 2
+    datasource: ads_gmv_day
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: order_user_count
+            table: ads_gmv_day
+          aggregate: SUM
+          label: 用户数
+      filters:
+        - col: date_id
+          op: ==
+          val: ${today}
+
+  - id: conversion_rate
+    name: "转化率"
+    type: number
+    position:
+      row: 0
+      col: 18
+      width: 6
+      height: 2
+    datasource: ads_conversion_rate
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: total_conversion_rate
+            table: ads_conversion_rate
+          aggregate: AVG
+          label: 转化率
+      filters:
+        - col: date_id
+          op: ==
+          val: ${today}
+      format:
+        suffix: "%"
+
+  # 第二行：趋势图
+  - id: gmv_trend
+    name: "GMV趋势"
+    type: line
+    position:
+      row: 2
+      col: 0
+      width: 12
+      height: 5
+    datasource: ads_gmv_day
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: gmv
+            table: ads_gmv_day
+          aggregate: SUM
+          label: GMV
+      groupby:
+        - column:
+            column_name: date_id
+            table: ads_gmv_day
+          label: 日期
+      filters:
+        - col: recent_days
+          op: ==
+          val: 1
+      time_range: Last 7 days
+      y_axis_format:
+        prefix: "¥"
+        thousand_separator: ","
+
+  - id: order_trend
+    name: "订单趋势"
+    type: bar
+    position:
+      row: 2
+      col: 12
+      width: 12
+      height: 5
+    datasource: ads_gmv_day
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: order_count
+            table: ads_gmv_day
+          aggregate: SUM
+          label: 订单数
+      groupby:
+        - column:
+            column_name: date_id
+            table: ads_gmv_day
+          label: 日期
+      filters:
+        - col: recent_days
+          op: ==
+          val: 1
+      time_range: Last 7 days
+
+  # 第三行：商品排行和转化率
+  - id: sku_rank
+    name: "商品销售排行"
+    type: bar
+    position:
+      row: 7
+      col: 0
+      width: 10
+      height: 5
+    datasource: ads_sku_sales_rank
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: order_amount
+            table: ads_sku_sales_rank
+          aggregate: SUM
+          label: 销售额
+      groupby:
+        - column:
+            column_name: sku_name
+            table: ads_sku_sales_rank
+          label: 商品名称
+      row_limit: 8
+      order_desc: true
+      y_axis_format:
+        prefix: "¥"
+        thousand_separator: ","
+
+  - id: conversion_funnel
+    name: "转化漏斗"
+    type: funnel
+    position:
+      row: 7
+      col: 10
+      width: 7
+      height: 5
+    datasource: ads_conversion_rate
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: visit_count
+            table: ads_conversion_rate
+          aggregate: SUM
+          label: 访问数
+        - expressionType: SIMPLE
+          column:
+            column_name: cart_count
+            table: ads_conversion_rate
+          aggregate: SUM
+          label: 加购数
+        - expressionType: SIMPLE
+          column:
+            column_name: order_count
+            table: ads_conversion_rate
+          aggregate: SUM
+          label: 下单数
+        - expressionType: SIMPLE
+          column:
+            column_name: payment_count
+            table: ads_conversion_rate
+          aggregate: SUM
+          label: 支付数
+      groupby:
+        - column:
+            column_name: recent_days
+            table: ads_conversion_rate
+          label: 周期
+      filters:
+        - col: recent_days
+          op: ==
+          val: 1
+
+  - id: retention
+    name: "用户留存"
+    type: line
+    position:
+      row: 7
+      col: 17
+      width: 7
+      height: 5
+    datasource: ads_user_retention
+    params:
+      metrics:
+        - expressionType: SIMPLE
+          column:
+            column_name: retention_rate
+            table: ads_user_retention
+          aggregate: AVG
+          label: 留存率
+      groupby:
+        - column:
+            column_name: retention_day
+            table: ads_user_retention
+          label: 留存天数
+      filters:
+        - col: date_id
+          op: ==
+          val: ${today}
+      y_axis_format:
+        suffix: "%"
+
+# ============================================================================
+# 数据源配置
+# ============================================================================
+
+datasources:
+  - name: gmall_hive
+    type: hive
+    host: localhost
+    port: 10000
+    database: gmall_ads
+    extra:
+      auth: NOSASL
+
+# ============================================================================
+# 权限配置
+# ============================================================================
+
+permissions:
+  roles:
+    - name: admin
+      dashboards:
+        - "电商业务数据大屏"
+      charts: all
+    - name: viewer
+      dashboards:
+        - "电商业务数据大屏"
+      charts:
+        - gmv_total
+        - order_count
+        - user_count
+        - conversion_rate
+        - gmv_trend
+        - order_trend
+
+# ============================================================================
+# 定时刷新配置
+# ============================================================================
+
+schedules:
+  - name: daily_refresh
+    cron: "0 0 * * *"
+    tasks:
+      - type: sql
+        sql: "REFRESH TABLE ads_gmv_day"
+        database: gmall_hive
+      - type: sql
+        sql: "REFRESH TABLE ads_conversion_rate"
+        database: gmall_hive
+      - type: sql
+        sql: "REFRESH TABLE ads_user_retention"
+        database: gmall_hive
+      - type: sql
+        sql: "REFRESH TABLE ads_sku_sales_rank"
+        database: gmall_hive
+
+# ============================================================================
+# 告警规则
+# ============================================================================
+
+alerts:
+  - name: gmv_drop_alert
+    description: "GMV下降超过30%告警"
+    chart_id: gmv_total
+    condition:
+      op: <
+      value: 0.7 * ${yesterday_gmv}
+    severity: critical
+    notification:
+      type: dingtalk
+      webhook: ${DINGTALK_WEBHOOK}
+      message: "GMV告警：今日GMV相比昨日下降超过30%"
+
+  - name: conversion_drop_alert
+    description: "转化率下降超过20%告警"
+    chart_id: conversion_rate
+    condition:
+      op: <
+      value: 0.8 * ${yesterday_conversion}
+    severity: warning
+    notification:
+      type: dingtalk
+      webhook: ${DINGTALK_WEBHOOK}
+      message: "转化率告警：今日转化率相比昨日下降超过20%"
