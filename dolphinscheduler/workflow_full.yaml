@@ -1,4 +1,4 @@
-# DolphinScheduler ETL 工作流配置
+# DolphinScheduler ETL 工作流配置 - 完整版
 
 # ============================================================================
 # 工作流定义
@@ -6,52 +6,140 @@
 
 workflow:
   name: "gmall_etl_daily"
-  description: "电商数仓每日ETL工作流"
+  description: "电商数仓每日ETL工作流 - 包含跨周期依赖、数据质量检查、告警通知"
   project_name: "gmall"
   tenant_code: "admin"
   timezone: "Asia/Shanghai"
   execution_type: PARALLEL
   fail_retry_times: 2
   fail_retry_interval: 300
-  timeout: 3600
+  timeout: 7200
+  delay_time: 0
 
 # ============================================================================
 # 工作流节点定义
 # ============================================================================
 
 nodes:
-  # 1. 清理昨天的数据（如果需要重跑）
-  - id: clean_yesterday_data
-    name: "清理昨日数据"
+  # ==================== 阶段1: DataX数据同步 ====================
+  
+  # 1.1 同步用户数据
+  - id: datax_user_info
+    name: "DataX-同步用户数据"
     type: SHELL
-    description: "清理昨日的Hive分区数据"
+    description: "使用DataX从MySQL同步用户数据到ODS层"
     run_flag: RUNNING
-    retry_times: 1
-    retry_interval: 60
-    timeout: 600
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
     params:
       biz_date: "${system.biz.date}"
     script: |
       #!/bin/bash
-      # 清理DWD层数据
-      hive -e "ALTER TABLE gmall_dwd.dwd_order_info DROP IF EXISTS PARTITION(dt='${biz_date}')"
-      hive -e "ALTER TABLE gmall_dwd.dwd_order_detail DROP IF EXISTS PARTITION(dt='${biz_date}')"
+      cd /opt/gmall/datax
+      python bin/datax.py job/ods_user_info.json -p "-Dbiz_date=${biz_date}"
 
-      # 清理DWS层数据
-      hive -e "ALTER TABLE gmall_dws.dws_gmv_stats DROP IF EXISTS PARTITION(dt='${biz_date}')"
-      hive -e "ALTER TABLE gmall_dws.dws_user_action_stats DROP IF EXISTS PARTITION(dt='${biz_date}')"
+  # 1.2 同步订单数据
+  - id: datax_order_info
+    name: "DataX-同步订单数据"
+    type: SHELL
+    description: "使用DataX从MySQL同步订单数据到ODS层"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    script: |
+      #!/bin/bash
+      cd /opt/gmall/datax
+      python bin/datax.py job/ods_order_info.json -p "-Dbiz_date=${biz_date}"
 
-      # 清理ADS层数据
-      hive -e "ALTER TABLE gmall_ads.ads_gmv_day DROP IF EXISTS PARTITION(dt='${biz_date}')"
-      hive -e "ALTER TABLE gmall_ads.ads_user_retention DROP IF EXISTS PARTITION(dt='${biz_date}')"
-      hive -e "ALTER TABLE gmall_ads.ads_sku_sales_rank DROP IF EXISTS PARTITION(dt='${biz_date}')"
-      hive -e "ALTER TABLE gmall_ads.ads_conversion_rate DROP IF EXISTS PARTITION(dt='${biz_date}')"
+  # 1.3 同步订单明细
+  - id: datax_order_detail
+    name: "DataX-同步订单明细"
+    type: SHELL
+    description: "使用DataX从MySQL同步订单明细到ODS层"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    script: |
+      #!/bin/bash
+      cd /opt/gmall/datax
+      python bin/datax.py job/ods_order_detail.json -p "-Dbiz_date=${biz_date}"
 
-  # 2. ODS -> DIM（维度表构建）
-  - id: etl_ods_to_dim
-    name: "ODS→DIM"
+  # 1.4 同步商品SKU数据
+  - id: datax_sku_info
+    name: "DataX-同步商品SKU"
+    type: SHELL
+    description: "使用DataX从MySQL同步商品SKU数据到ODS层"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    script: |
+      #!/bin/bash
+      cd /opt/gmall/datax
+      python bin/datax.py job/ods_sku_info.json -p "-Dbiz_date=${biz_date}"
+
+  # ==================== 阶段2: ODS -> DIM（维度表构建） ====================
+  
+  # 2.1 维度表全量构建
+  - id: etl_ods_to_dim_full
+    name: "ODS→DIM-全量"
     type: HIVE
-    description: "从ODS层同步数据到DIM层（拉链表更新）"
+    description: "从ODS层构建维度表（品牌、分类、地区等）"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 2400
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+      SET hive.auto.convert.join=true;
+      SET hive.optimize.skewjoin=true;
+
+      -- 构建品牌维度表 (SCD1)
+      INSERT OVERWRITE TABLE gmall_dim.dim_brand
+      SELECT tm_id, tm_name, '', '', create_time, create_time FROM gmall_ods.ods_sku_info WHERE dt='${biz_date}' GROUP BY tm_id, tm_name, create_time;
+
+      -- 构建分类维度表 (SCD1)
+      INSERT OVERWRITE TABLE gmall_dim.dim_category3
+      SELECT category3_id, category2_id, sku_name AS category3_name, '', create_time, create_time FROM gmall_ods.ods_sku_info WHERE dt='${biz_date}' GROUP BY category3_id, category2_id, sku_name, create_time;
+
+      -- 构建日期维度表
+      INSERT OVERWRITE TABLE gmall_dim.dim_time
+      SELECT 
+          date_id, week_id, week_day, day, month, quarter, year,
+          CASE WHEN week_day IN ('周六', '周日') THEN '0' ELSE '1' END AS is_workday,
+          '' AS holiday_name, week_of_year, month_of_quarter
+      FROM (
+          SELECT 
+              date_format(d, 'yyyy-MM-dd') AS date_id,
+              date_format(d, 'yyyy-w') AS week_id,
+              date_format(d, 'EEEE') AS week_day,
+              date_format(d, 'dd') AS day,
+              date_format(d, 'MM') AS month,
+              date_format(d, 'Q') AS quarter,
+              date_format(d, 'yyyy') AS year,
+              date_format(d, 'w') AS week_of_year,
+              IF(MONTH(d) IN (1,4,7,10), '1', IF(MONTH(d) IN (2,5,8,11), '2', '3')) AS month_of_quarter
+          FROM (SELECT sequence(to_date('2020-01-01'), to_date('2030-12-31'), interval 1 day) AS dates) t
+          LATERAL VIEW explode(dates) d AS d
+      ) t;
+
+  # 2.2 用户维度拉链表更新 (SCD2)
+  - id: etl_ods_to_dim_user_zip
+    name: "ODS→DIM-用户拉链表"
+    type: HIVE
+    description: "更新用户维度拉链表（SCD2缓慢变化维）"
     run_flag: RUNNING
     retry_times: 2
     retry_interval: 300
@@ -62,14 +150,33 @@ nodes:
       SET hive.exec.dynamic.partition=true;
       SET hive.exec.dynamic.partition.mode=nonstrict;
 
-      -- 调用ETL脚本
-      SOURCE /opt/gmall/gmall-dw/hive/etl_ods_to_dim.sql;
+      -- 创建临时表存储当日变更
+      DROP TABLE IF EXISTS tmp_user_update;
+      CREATE TABLE tmp_user_update AS
+      SELECT id, login_name, nick_name, name, phone_num, email, head_img, user_level, birthday, gender, create_time, status
+      FROM gmall_ods.ods_user_info WHERE dt='${biz_date}';
 
-  # 3. ODS -> DWD（数据清洗）
-  - id: etl_ods_to_dwd
-    name: "ODS→DWD"
+      -- 更新拉链表
+      INSERT OVERWRITE TABLE gmall_dim.dim_user_scd2 PARTITION(dt='${biz_date}')
+      SELECT 
+          a.id, a.login_name, a.nick_name, a.name, a.phone_num, a.email,
+          a.head_img, a.user_level, a.birthday, a.gender, a.create_time, a.status,
+          a.start_date,
+          CASE WHEN b.id IS NOT NULL THEN date_sub('${biz_date}', 1) ELSE a.end_date END AS end_date,
+          CASE WHEN b.id IS NOT NULL THEN '0' ELSE a.is_current END AS is_current
+      FROM gmall_dim.dim_user_scd2 a
+      LEFT JOIN tmp_user_update b ON a.id = b.id
+      WHERE a.is_current = '1'
+      UNION ALL
+      SELECT id, login_name, nick_name, name, phone_num, email, head_img, user_level, 
+             birthday, gender, create_time, status, '${biz_date}', '9999-12-31', '1'
+      FROM tmp_user_update;
+
+  # 2.3 用户SCD3维度表更新
+  - id: etl_ods_to_dim_user_scd3
+    name: "ODS→DIM-用户SCD3"
     type: HIVE
-    description: "从ODS层清洗数据到DWD层"
+    description: "更新用户维度SCD3表（多版本列）"
     run_flag: RUNNING
     retry_times: 2
     retry_interval: 300
@@ -80,14 +187,86 @@ nodes:
       SET hive.exec.dynamic.partition=true;
       SET hive.exec.dynamic.partition.mode=nonstrict;
 
-      -- 调用ETL脚本
-      SOURCE /opt/gmall/gmall-dw/hive/etl_ods_to_dwd.sql;
+      INSERT OVERWRITE TABLE gmall_dim.dim_user_scd3
+      SELECT 
+          COALESCE(b.id, a.id) AS id,
+          COALESCE(b.login_name, a.login_name) AS login_name,
+          COALESCE(b.nick_name, a.nick_name) AS nick_name,
+          COALESCE(b.name, a.name) AS name,
+          COALESCE(b.phone_num, a.phone_num) AS phone_num,
+          COALESCE(b.email, a.email) AS email,
+          COALESCE(b.head_img, a.head_img) AS head_img,
+          COALESCE(b.user_level, a.user_level) AS user_level,
+          CASE WHEN b.user_level IS NOT NULL AND a.user_level != b.user_level THEN a.user_level ELSE a.user_level_last END AS user_level_last,
+          COALESCE(b.birthday, a.birthday) AS birthday,
+          COALESCE(b.gender, a.gender) AS gender,
+          CASE WHEN b.gender IS NOT NULL AND a.gender != b.gender THEN a.gender ELSE a.gender_last END AS gender_last,
+          COALESCE(a.create_time, b.create_time) AS create_time,
+          COALESCE(b.status, a.status) AS status,
+          '${biz_date}' AS update_time,
+          COALESCE(a.version, 0) + 1 AS version
+      FROM gmall_dim.dim_user_scd3 a
+      RIGHT JOIN gmall_ods.ods_user_info b ON a.id = b.id
+      WHERE b.dt = '${biz_date}';
 
-  # 4. DWD -> DWS（数据汇总）
-  - id: etl_dwd_to_dws
-    name: "DWD→DWS"
+  # ==================== 阶段3: ODS -> DWD（数据清洗） ====================
+  
+  # 3.1 订单明细清洗
+  - id: etl_ods_to_dwd_order_detail
+    name: "ODS→DWD-订单明细"
     type: HIVE
-    description: "从DWD层汇总数据到DWS层"
+    description: "清洗订单明细表，关联用户和商品维度"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 2400
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+      SET hive.auto.convert.join=true;
+
+      INSERT OVERWRITE TABLE gmall_dwd.dwd_order_detail PARTITION(dt='${biz_date}')
+      SELECT 
+          od.id, od.order_id, oi.user_id, od.sku_id, oi.province_id,
+          od.create_time, od.sku_num, od.order_price,
+          0 AS activity_reduce, 0 AS coupon_reduce,
+          od.order_price * od.sku_num AS final_amount,
+          date_format(od.create_time, 'yyyyMMdd') AS date_id
+      FROM gmall_ods.ods_order_detail od
+      JOIN gmall_ods.ods_order_info oi ON od.order_id = oi.id
+      WHERE od.dt = '${biz_date}' AND oi.dt = '${biz_date}';
+
+  # 3.2 订单主表清洗
+  - id: etl_ods_to_dwd_order_info
+    name: "ODS→DWD-订单主表"
+    type: HIVE
+    description: "清洗订单主表，脱敏处理"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      INSERT OVERWRITE TABLE gmall_dwd.dwd_order_info PARTITION(dt='${biz_date}')
+      SELECT 
+          id, user_id, province_id, order_status, total_amount, payment_way,
+          create_time, date_format(create_time, 'yyyyMMdd') AS date_id
+      FROM gmall_ods.ods_order_info
+      WHERE dt = '${biz_date}';
+
+  # ==================== 阶段4: DWD -> DWS（数据汇总） ====================
+  
+  # 4.1 用户每日汇总
+  - id: etl_dwd_to_dws_user_day
+    name: "DWD→DWS-用户日汇总"
+    type: HIVE
+    description: "按用户维度汇总每日数据"
     run_flag: RUNNING
     retry_times: 2
     retry_interval: 300
@@ -98,14 +277,46 @@ nodes:
       SET hive.exec.dynamic.partition=true;
       SET hive.exec.dynamic.partition.mode=nonstrict;
 
-      -- 调用ETL脚本
-      SOURCE /opt/gmall/gmall-dw/hive/etl_dwd_to_dws.sql;
+      INSERT OVERWRITE TABLE gmall_dws.dws_user_day PARTITION(dt='${biz_date}')
+      SELECT 
+          user_id, date_id,
+          COUNT(DISTINCT order_id) AS order_count,
+          SUM(final_amount) AS order_amount,
+          0 AS payment_count, 0 AS payment_amount
+      FROM gmall_dwd.dwd_order_detail
+      WHERE dt = '${biz_date}'
+      GROUP BY user_id, date_id;
 
-  # 5. DWS -> ADS（指标计算）
-  - id: etl_dws_to_ads
-    name: "DWS→ADS"
+  # 4.2 商品每日汇总
+  - id: etl_dwd_to_dws_sku_day
+    name: "DWD→DWS-商品日汇总"
     type: HIVE
-    description: "从DWS层计算指标到ADS层"
+    description: "按商品维度汇总每日数据"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 2400
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      INSERT OVERWRITE TABLE gmall_dws.dws_sku_day PARTITION(dt='${biz_date}')
+      SELECT 
+          sku_id, date_id,
+          COUNT(DISTINCT order_id) AS order_count,
+          SUM(sku_num) AS order_num,
+          SUM(final_amount) AS order_amount
+      FROM gmall_dwd.dwd_order_detail
+      WHERE dt = '${biz_date}'
+      GROUP BY sku_id, date_id;
+
+  # 4.3 订单每日汇总
+  - id: etl_dwd_to_dws_order_day
+    name: "DWD→DWS-订单日汇总"
+    type: HIVE
+    description: "汇总每日订单指标"
     run_flag: RUNNING
     retry_times: 2
     retry_interval: 300
@@ -116,14 +327,137 @@ nodes:
       SET hive.exec.dynamic.partition=true;
       SET hive.exec.dynamic.partition.mode=nonstrict;
 
-      -- 调用ETL脚本
-      SOURCE /opt/gmall/gmall-dw/hive/etl_dws_to_ads.sql;
+      INSERT OVERWRITE TABLE gmall_dws.dws_order_day PARTITION(dt='${biz_date}')
+      SELECT 
+          date_id,
+          COUNT(DISTINCT id) AS order_count,
+          COUNT(DISTINCT user_id) AS order_user_count,
+          SUM(total_amount) AS order_amount,
+          0 AS payment_count, 0 AS payment_user_count, 0 AS payment_amount
+      FROM gmall_dwd.dwd_order_info
+      WHERE dt = '${biz_date}'
+      GROUP BY date_id;
 
-  # 6. 数据质量检查
+  # 4.4 地区每日汇总
+  - id: etl_dwd_to_dws_province_day
+    name: "DWD→DWS-地区日汇总"
+    type: HIVE
+    description: "按地区维度汇总每日数据"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      INSERT OVERWRITE TABLE gmall_dws.dws_province_day PARTITION(dt='${biz_date}')
+      SELECT 
+          province_id, date_id,
+          COUNT(DISTINCT id) AS order_count,
+          COUNT(DISTINCT user_id) AS order_user_count,
+          SUM(total_amount) AS order_amount
+      FROM gmall_dwd.dwd_order_info
+      WHERE dt = '${biz_date}'
+      GROUP BY province_id, date_id;
+
+  # ==================== 阶段5: DWS -> ADS（指标计算） ====================
+  
+  # 5.1 GMV日报表
+  - id: etl_dws_to_ads_gmv_day
+    name: "DWS→ADS-GMV日报"
+    type: HIVE
+    description: "生成GMV日报表"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      INSERT OVERWRITE TABLE gmall_ads.ads_gmv_day
+      SELECT date_id, order_count, order_user_count, order_amount, payment_count, payment_user_count, payment_amount
+      FROM gmall_dws.dws_order_day
+      WHERE dt = '${biz_date}';
+
+  # 5.2 用户留存表
+  - id: etl_dws_to_ads_user_retention
+    name: "DWS→ADS-用户留存"
+    type: HIVE
+    description: "计算用户留存指标"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      INSERT OVERWRITE TABLE gmall_ads.ads_user_retention
+      SELECT 
+          t1.date_id AS stat_date,
+          t1.user_count AS new_user_count,
+          COALESCE(t2.user_count, 0) AS d1_retention_count,
+          COALESCE(t3.user_count, 0) AS d7_retention_count,
+          COALESCE(t4.user_count, 0) AS d30_retention_count,
+          ROUND(COALESCE(t2.user_count, 0) / t1.user_count * 100, 2) AS d1_retention_rate,
+          ROUND(COALESCE(t3.user_count, 0) / t1.user_count * 100, 2) AS d7_retention_rate,
+          ROUND(COALESCE(t4.user_count, 0) / t1.user_count * 100, 2) AS d30_retention_rate
+      FROM (SELECT date_id, COUNT(DISTINCT user_id) AS user_count FROM gmall_dws.dws_user_day WHERE dt = '${biz_date}' GROUP BY date_id) t1
+      LEFT JOIN (SELECT date_id, COUNT(DISTINCT user_id) AS user_count FROM gmall_dws.dws_user_day WHERE dt = date_add('${biz_date}', 1) GROUP BY date_id) t2 ON t1.date_id = date_format(date_add(to_date(t2.date_id), -1), 'yyyyMMdd')
+      LEFT JOIN (SELECT date_id, COUNT(DISTINCT user_id) AS user_count FROM gmall_dws.dws_user_day WHERE dt = date_add('${biz_date}', 7) GROUP BY date_id) t3 ON t1.date_id = date_format(date_add(to_date(t3.date_id), -7), 'yyyyMMdd')
+      LEFT JOIN (SELECT date_id, COUNT(DISTINCT user_id) AS user_count FROM gmall_dws.dws_user_day WHERE dt = date_add('${biz_date}', 30) GROUP BY date_id) t4 ON t1.date_id = date_format(date_add(to_date(t4.date_id), -30), 'yyyyMMdd');
+
+  # 5.3 转化率表
+  - id: etl_dws_to_ads_conversion_rate
+    name: "DWS→ADS-转化率"
+    type: HIVE
+    description: "计算各环节转化率"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      INSERT OVERWRITE TABLE gmall_ads.ads_conversion_rate
+      SELECT 
+          date_id,
+          order_count,
+          payment_count,
+          ROUND(payment_count / order_count * 100, 2) AS payment_conversion_rate,
+          0 AS cart_conversion_rate,
+          0 AS browse_conversion_rate
+      FROM gmall_dws.dws_order_day
+      WHERE dt = '${biz_date}';
+
+  # 5.4 商品销售排行
+  - id: etl_dws_to_ads_sku_sales_rank
+    name: "DWS→ADS-商品销售排行"
+    type: HIVE
+    description: "生成商品销售排行榜"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 1800
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      INSERT OVERWRITE TABLE gmall_ads.ads_sku_sales_rank
+      SELECT 
+          date_id, sku_id, order_count, order_num, order_amount,
+          ROW_NUMBER() OVER(PARTITION BY date_id ORDER BY order_amount DESC) AS sales_rank
+      FROM gmall_dws.dws_sku_day
+      WHERE dt = '${biz_date}';
+
+  # ==================== 阶段6: 数据质量检查 ====================
+  
+  # 6.1 数据质量校验
   - id: data_quality_check
     name: "数据质量检查"
     type: PYTHON
-    description: "检查各层数据质量"
+    description: "检查各层数据完整性、准确性、一致性"
     run_flag: RUNNING
     retry_times: 1
     retry_interval: 60
@@ -136,7 +470,7 @@ nodes:
 
       from data_quality_validator import DataQualityValidator
 
-      validator = DataQualityValidator()
+      validator = DataQualityValidator(biz_date='${biz_date}')
       result = validator.validate_all()
 
       if not result:
@@ -146,11 +480,94 @@ nodes:
           print("数据质量检查通过")
           sys.exit(0)
 
-  # 7. 发送通知
+  # 6.2 数据血缘检查
+  - id: data_lineage_check
+    name: "数据血缘检查"
+    type: PYTHON
+    description: "验证指标血缘关系完整性"
+    run_flag: RUNNING
+    retry_times: 1
+    retry_interval: 60
+    timeout: 300
+    params:
+      biz_date: "${system.biz.date}"
+    python_script: |
+      import sys
+      sys.path.append('/opt/gmall/utils')
+
+      from data_lineage_checker import DataLineageChecker
+
+      checker = DataLineageChecker()
+      result = checker.check_lineage()
+
+      if not result:
+          print("数据血缘检查失败")
+          sys.exit(1)
+      else:
+          print("数据血缘检查通过")
+          sys.exit(0)
+
+  # ==================== 阶段7: 跨周期任务（周报/月报） ====================
+  
+  # 7.1 周汇总任务（每周一执行）
+  - id: etl_weekly_summary
+    name: "周汇总任务"
+    type: HIVE
+    description: "每周一汇总上周数据"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 3600
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      -- 周汇总表
+      INSERT OVERWRITE TABLE gmall_dws.dws_order_week
+      SELECT 
+          CONCAT(YEAR(date_id), '-W', WEEKOFYEAR(date_id)) AS week_id,
+          SUM(order_count) AS week_order_count,
+          SUM(order_user_count) AS week_order_user_count,
+          SUM(order_amount) AS week_order_amount
+      FROM gmall_dws.dws_order_day
+      WHERE dt >= date_add('${biz_date}', -6) AND dt <= '${biz_date}'
+      GROUP BY CONCAT(YEAR(date_id), '-W', WEEKOFYEAR(date_id));
+
+  # 7.2 月汇总任务（每月1日执行）
+  - id: etl_monthly_summary
+    name: "月汇总任务"
+    type: HIVE
+    description: "每月1日汇总上月数据"
+    run_flag: RUNNING
+    retry_times: 2
+    retry_interval: 300
+    timeout: 3600
+    params:
+      biz_date: "${system.biz.date}"
+    hive_sql: |
+      SET hive.exec.dynamic.partition=true;
+      SET hive.exec.dynamic.partition.mode=nonstrict;
+
+      -- 月汇总表
+      INSERT OVERWRITE TABLE gmall_dws.dws_order_month
+      SELECT 
+          CONCAT(YEAR(date_id), '-', LPAD(MONTH(date_id), 2, '0')) AS month_id,
+          SUM(order_count) AS month_order_count,
+          SUM(order_user_count) AS month_order_user_count,
+          SUM(order_amount) AS month_order_amount
+      FROM gmall_dws.dws_order_day
+      WHERE dt >= trunc(add_months('${biz_date}', -1), 'MM') AND dt < trunc('${biz_date}', 'MM')
+      GROUP BY CONCAT(YEAR(date_id), '-', LPAD(MONTH(date_id), 2, '0'));
+
+  # ==================== 阶段8: 通知与告警 ====================
+  
+  # 8.1 发送完成通知
   - id: send_notification
     name: "发送通知"
     type: SHELL
-    description: "发送ETL完成通知"
+    description: "发送ETL完成通知（钉钉/邮件）"
     run_flag: RUNNING
     retry_times: 0
     retry_interval: 0
@@ -162,27 +579,13 @@ nodes:
       #!/bin/bash
 
       if [ "${success}" = "true" ]; then
-          # 发送成功通知
           curl -s -X POST "${DINGTALK_WEBHOOK}" \
               -H "Content-Type: application/json" \
-              -d "{
-                  \"msgtype\": \"markdown\",
-                  \"markdown\": {
-                      \"title\": \"✅ ETL任务完成通知\",
-                      \"text\": \"## ✅ ETL任务完成\\n\\n**日期**: ${biz_date}\\n**状态**: 成功\\n**执行时间**: $(date '+%Y-%m-%d %H:%M:%S')\"
-                  }
-              }"
+              -d "{\"msgtype\": \"markdown\",\"markdown\":{\"title\":\"✅ ETL任务完成\",\"text\":\"## ✅ ETL任务完成\\n\\n**日期**: ${biz_date}\\n**状态**: 成功\\n**时间**: $(date '+%Y-%m-%d %H:%M:%S')\"}}"
       else
-          # 发送失败通知
           curl -s -X POST "${DINGTALK_WEBHOOK}" \
               -H "Content-Type: application/json" \
-              -d "{
-                  \"msgtype\": \"markdown\",
-                  \"markdown\": {
-                      \"title\": \"❌ ETL任务失败通知\",
-                      \"text\": \"## ❌ ETL任务失败\\n\\n**日期**: ${biz_date}\\n**状态**: 失败\\n**执行时间**: $(date '+%Y-%m-%d %H:%M:%S')\\n**建议**: 请检查DolphinScheduler控制台\"
-                  }
-              }"
+              -d "{\"msgtype\": \"markdown\",\"markdown\":{\"title\":\"❌ ETL任务失败\",\"text\":\"## ❌ ETL任务失败\\n\\n**日期**: ${biz_date}\\n**状态**: 失败\\n**时间**: $(date '+%Y-%m-%d %H:%M:%S')\\n**建议**: 查看DolphinScheduler控制台\"}}"
       fi
 
 # ============================================================================
@@ -190,28 +593,72 @@ nodes:
 # ============================================================================
 
 dependencies:
-  # 清理数据 -> ODS→DIM
-  - from_node: clean_yesterday_data
-    to_node: etl_ods_to_dim
+  # DataX同步任务（并行执行）
+  - from_node: datax_user_info
+    to_node: etl_ods_to_dim_full
+  - from_node: datax_order_info
+    to_node: etl_ods_to_dim_full
+  - from_node: datax_order_detail
+    to_node: etl_ods_to_dim_full
+  - from_node: datax_sku_info
+    to_node: etl_ods_to_dim_full
 
-  # ODS→DIM -> ODS→DWD（维度表必须先完成）
-  - from_node: etl_ods_to_dim
-    to_node: etl_ods_to_dwd
+  # DIM层任务
+  - from_node: etl_ods_to_dim_full
+    to_node: etl_ods_to_dim_user_zip
+  - from_node: etl_ods_to_dim_full
+    to_node: etl_ods_to_dim_user_scd3
 
-  # ODS→DWD -> DWD→DWS（明细数据必须先完成）
-  - from_node: etl_ods_to_dwd
-    to_node: etl_dwd_to_dws
+  # DWD层任务（依赖DIM完成）
+  - from_node: etl_ods_to_dim_user_zip
+    to_node: etl_ods_to_dwd_order_detail
+  - from_node: etl_ods_to_dim_user_zip
+    to_node: etl_ods_to_dwd_order_info
 
-  # DWD→DWS -> DWS→ADS（汇总数据必须先完成）
-  - from_node: etl_dwd_to_dws
-    to_node: etl_dws_to_ads
+  # DWS层任务（依赖DWD完成）
+  - from_node: etl_ods_to_dwd_order_detail
+    to_node: etl_dwd_to_dws_user_day
+  - from_node: etl_ods_to_dwd_order_detail
+    to_node: etl_dwd_to_dws_sku_day
+  - from_node: etl_ods_to_dwd_order_info
+    to_node: etl_dwd_to_dws_order_day
+  - from_node: etl_ods_to_dwd_order_info
+    to_node: etl_dwd_to_dws_province_day
 
-  # DWS→ADS -> 数据质量检查（指标计算完成后检查）
-  - from_node: etl_dws_to_ads
+  # ADS层任务（依赖DWS完成）
+  - from_node: etl_dwd_to_dws_order_day
+    to_node: etl_dws_to_ads_gmv_day
+  - from_node: etl_dwd_to_dws_user_day
+    to_node: etl_dws_to_ads_user_retention
+  - from_node: etl_dwd_to_dws_order_day
+    to_node: etl_dws_to_ads_conversion_rate
+  - from_node: etl_dwd_to_dws_sku_day
+    to_node: etl_dws_to_ads_sku_sales_rank
+
+  # 数据质量检查（依赖ADS完成）
+  - from_node: etl_dws_to_ads_gmv_day
     to_node: data_quality_check
-
-  # 数据质量检查 -> 发送通知（无论成功失败都发送通知）
+  - from_node: etl_dws_to_ads_user_retention
+    to_node: data_quality_check
   - from_node: data_quality_check
+    to_node: data_lineage_check
+
+  # 跨周期任务（依赖日任务完成）
+  - from_node: etl_dwd_to_dws_order_day
+    to_node: etl_weekly_summary
+    condition: "${system.biz.date.day_of_week} == 1"  # 周一执行
+  - from_node: etl_dwd_to_dws_order_day
+    to_node: etl_monthly_summary
+    condition: "${system.biz.date.day_of_month} == 1"  # 每月1日执行
+
+  # 发送通知（依赖所有任务）
+  - from_node: data_lineage_check
+    to_node: send_notification
+    relation_type: ALL
+  - from_node: etl_weekly_summary
+    to_node: send_notification
+    relation_type: ALL
+  - from_node: etl_monthly_summary
     to_node: send_notification
     relation_type: ALL
 
@@ -221,12 +668,12 @@ dependencies:
 
 schedule:
   type: CRON
-  cron_expression: "0 2 * * ?" # 每天凌晨2点执行
+  cron_expression: "0 2 * * ?"
   start_time: "2024-01-01 00:00:00"
   end_time: "2099-12-31 23:59:59"
   timezone: "Asia/Shanghai"
-  execution_timeout: 7200 # 2小时超时
-  concurrent: false # 不允许并发执行
+  execution_timeout: 10800
+  concurrent: false
   queue: "default"
 
 # ============================================================================
@@ -242,23 +689,11 @@ alerts:
     receivers:
       - type: DINGTALK
         webhook: "${DINGTALK_WEBHOOK}"
-        message: |
-          ## ❌ ETL任务失败
-          **任务名称**: ${task.name}
-          **工作流**: ${workflow.name}
-          **日期**: ${system.biz.date}
-          **错误信息**: ${task.error_message}
-          **重试次数**: ${task.retry_count}
+        message: "## ❌ ETL任务失败\n**任务**: ${task.name}\n**工作流**: ${workflow.name}\n**日期**: ${system.biz.date}\n**错误**: ${task.error_message}"
       - type: EMAIL
         to: "admin@example.com"
         subject: "[ETL告警] ${workflow.name} - ${task.name} 失败"
-        content: |
-          任务失败通知
-
-          工作流: ${workflow.name}
-          任务名称: ${task.name}
-          日期: ${system.biz.date}
-          错误信息: ${task.error_message}
+        content: "任务失败通知\n\n工作流: ${workflow.name}\n任务: ${task.name}\n日期: ${system.biz.date}\n错误: ${task.error_message}"
 
   # 任务超时告警
   - id: task_timeout_alert
@@ -268,12 +703,7 @@ alerts:
     receivers:
       - type: DINGTALK
         webhook: "${DINGTALK_WEBHOOK}"
-        message: |
-          ## ⚠️ ETL任务超时
-          **任务名称**: ${task.name}
-          **工作流**: ${workflow.name}
-          **日期**: ${system.biz.date}
-          **超时时间**: ${task.timeout}秒
+        message: "## ⚠️ ETL任务超时\n**任务**: ${task.name}\n**工作流**: ${workflow.name}\n**日期**: ${system.biz.date}\n**超时**: ${task.timeout}秒"
 
   # 工作流失败告警
   - id: workflow_fail_alert
@@ -283,12 +713,18 @@ alerts:
     receivers:
       - type: DINGTALK
         webhook: "${DINGTALK_WEBHOOK}"
-        message: |
-          ## ❌ ETL工作流失败
-          **工作流名称**: ${workflow.name}
-          **日期**: ${system.biz.date}
-          **失败节点**: ${workflow.failed_task_names}
-          **执行次数**: ${workflow.execution_count}
+        message: "## ❌ ETL工作流失败\n**工作流**: ${workflow.name}\n**日期**: ${system.biz.date}\n**失败节点**: ${workflow.failed_task_names}"
+
+  # 数据质量告警
+  - id: data_quality_alert
+    name: "数据质量告警"
+    type: CUSTOM
+    level: ERROR
+    condition: "${task.return_code} != 0 && ${task.name} == '数据质量检查'"
+    receivers:
+      - type: DINGTALK
+        webhook: "${DINGTALK_WEBHOOK}"
+        message: "## ❌ 数据质量检查失败\n**工作流**: ${workflow.name}\n**日期**: ${system.biz.date}\n**原因**: 数据完整性/准确性/一致性检查未通过"
 
 # ============================================================================
 # 资源配置
@@ -297,9 +733,9 @@ alerts:
 resources:
   queue: "default"
   worker_group: "default"
-  cpu: 2
-  memory: 4096 # MB
-  disk: 10240 # MB
+  cpu: 4
+  memory: 8192
+  disk: 20480
 
 # ============================================================================
 # 环境变量
@@ -312,8 +748,10 @@ env:
     value: "/opt/hive"
   - key: SPARK_HOME
     value: "/opt/spark"
+  - key: DATAX_HOME
+    value: "/opt/datax"
   - key: PATH
-    value: "${HADOOP_HOME}/bin:${HIVE_HOME}/bin:${SPARK_HOME}/bin:${PATH}"
+    value: "${HADOOP_HOME}/bin:${HIVE_HOME}/bin:${SPARK_HOME}/bin:${DATAX_HOME}/bin:${PATH}"
   - key: DINGTALK_WEBHOOK
     value: "${DINGTALK_WEBHOOK}"
 
