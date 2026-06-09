@@ -8,7 +8,13 @@ import base64
 class DataMasker:
     def __init__(self, secret_key=None):
         if secret_key:
-            self.cipher_suite = Fernet(base64.urlsafe_b64encode(secret_key.encode()[:32]))
+            try:
+                self.cipher_suite = Fernet(secret_key)
+            except ValueError:
+                key_bytes = secret_key.encode()
+                if len(key_bytes) < 32:
+                    key_bytes = key_bytes + b'\x00' * (32 - len(key_bytes))
+                self.cipher_suite = Fernet(base64.urlsafe_b64encode(key_bytes[:32]))
         else:
             self.cipher_suite = None
 

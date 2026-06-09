@@ -1,0 +1,110 @@
+{
+    "roles": {
+        "admin": {
+            "description": "管理员",
+            "permissions": [
+                "ods",
+                "dim",
+                "dwd",
+                "dws",
+                "ads"
+            ]
+        },
+        "developer": {
+            "description": "开发人员",
+            "permissions": [
+                "ods",
+                "dim",
+                "dwd"
+            ]
+        },
+        "analyst": {
+            "description": "分析师",
+            "permissions": [
+                "dim",
+                "dws",
+                "ads"
+            ]
+        },
+        "business": {
+            "description": "业务人员",
+            "permissions": [
+                "ads"
+            ]
+        },
+        "guest": {
+            "description": "访客",
+            "permissions": []
+        }
+    },
+    "users": {
+        "analyst_zhang": "analyst",
+        "dev_li": "developer"
+    },
+    "data_levels": {
+        "ods": {
+            "name": "原始数据层",
+            "description": "直接同步业务库数据，包含敏感信息",
+            "sensitive": true,
+            "retention_days": 90
+        },
+        "dim": {
+            "name": "维度数据层",
+            "description": "维度表，已脱敏处理",
+            "sensitive": false,
+            "retention_days": -1
+        },
+        "dwd": {
+            "name": "明细数据层",
+            "description": "清洗后的明细数据，部分敏感字段已脱敏",
+            "sensitive": true,
+            "retention_days": 30
+        },
+        "dws": {
+            "name": "汇总数据层",
+            "description": "按主题轻度聚合，不包含敏感信息",
+            "sensitive": false,
+            "retention_days": -1
+        },
+        "ads": {
+            "name": "应用数据层",
+            "description": "指标报表数据，面向业务",
+            "sensitive": false,
+            "retention_days": -1
+        }
+    },
+    "sensitive_fields": {
+        "phone_num": {
+            "mask_type": "phone",
+            "description": "手机号"
+        },
+        "email": {
+            "mask_type": "email",
+            "description": "邮箱"
+        },
+        "id_card": {
+            "mask_type": "id_card",
+            "description": "身份证号"
+        },
+        "name": {
+            "mask_type": "name",
+            "description": "姓名"
+        },
+        "address": {
+            "mask_type": "address",
+            "description": "地址"
+        },
+        "bank_card": {
+            "mask_type": "bank_card",
+            "description": "银行卡号"
+        },
+        "password": {
+            "mask_type": "password",
+            "description": "密码"
+        },
+        "ip": {
+            "mask_type": "ip",
+            "description": "IP地址"
+        }
+    }
+}
