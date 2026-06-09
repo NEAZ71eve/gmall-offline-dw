@@ -14,9 +14,6 @@
 | **MySQL** | 8.0 | 业务数据库，存储模拟电商原始数据 | `sql/` |
 | **Zookeeper** | 3.8.x | 集群服务协调、节点管理 | `zookeeper/zoo.cfg` |
 | **Hadoop HDFS** | 3.3.5 | 分布式文件存储 | `start_all.sh` |
-| **Kafka** | 3.9.x | 消息队列，实时数据中转 | `kafka-conf/` |
-| **Maxwell** | 1.49.0 | MySQL 增量日志采集 | `maxwell/` |
-| **Flume** | 1.11.0 | 日志采集，数据管道 | `flume-conf/` |
 | **DataX** | 202310 | 多数据源全量/增量同步 | `datax/` |
 | **Hive** | 3.1.3 | 离线数仓核心引擎 | `gmall-dw/hive/` |
 | **DolphinScheduler** | 3.2.x | 任务工作流编排、定时调度 | `dolphinscheduler/` |
@@ -33,20 +30,13 @@
 - Hadoop 3.3.5
 - MySQL 8.0
 - Hive 3.1.3
-- Kafka 3.9.x
 - Python 3.x
 
 ### 2. 一键启动所有服务
 
 ```bash
-# 启动基础服务 (MySQL + Hadoop)
+# 启动基础服务 (MySQL + Hadoop + Zookeeper)
 ./start_all.sh
-
-# 启动 Kafka 生态 (Zookeeper + Kafka + Maxwell)
-./start_kafka.sh
-
-# 启动 Flume 采集
-./start_flume.sh
 
 # 停止所有服务
 ./stop_all.sh
@@ -70,7 +60,7 @@ python3 demo_etl_flow.py
 ## 项目结构
 
 ```
-d:\s\作业/
+/workspace/
 ├── sql/                                    # MySQL 业务库脚本
 │   └── gmall_schema.sql                    # 电商业务表结构
 │
@@ -80,25 +70,15 @@ d:\s\作业/
 │   │   ├── create_dim.sql                 # DIM层建表（含拉链表）
 │   │   ├── create_dwd.sql                 # DWD层建表
 │   │   ├── create_dws.sql                 # DWS层建表
-│   │   └── create_ads.sql                # ADS层建表
+│   │   ├── create_ads.sql                # ADS层建表
+│   │   └── etl_*.sql                      # ETL转换脚本
 │   └── docs/                               # 设计文档
 │       ├── 分层设计.md                     # 数仓分层设计
-│       └── 指标字典.md                     # 指标定义
-│
-├── kafka-conf/                             # Kafka 配置
-│   ├── server.properties                   # Kafka 服务配置
-│   └── create_topics.sh                    # Topic 创建脚本
+│       ├── 指标字典.md                     # 指标定义
+│       └── 架构图.md                       # 架构说明
 │
 ├── zookeeper/                              # Zookeeper 配置
 │   └── zoo.cfg                            # Zookeeper 配置文件
-│
-├── maxwell/                                # Maxwell 配置
-│   ├── config.properties                   # Maxwell 配置文件
-│   └── maxwell_init.sql                    # Maxwell 初始化SQL
-│
-├── flume-conf/                             # Flume 配置
-│   ├── ecommerce.conf                      # 电商日志采集
-│   └── kafka_to_hdfs.conf                  # Kafka到HDFS采集
 │
 ├── datax/                                  # DataX 任务配置
 │   ├── ods_user_info.json                 # 用户数据同步
@@ -108,6 +88,7 @@ d:\s\作业/
 │
 ├── dolphinscheduler/                       # DolphinScheduler 配置
 │   ├── workflow.json                      # ETL工作流定义
+│   ├── workflow_full.yaml                 # 完整工作流配置
 │   ├── submit_workflow.sh                 # 工作流提交脚本
 │   └── README.md                          # DolphinScheduler 使用指南
 │
@@ -115,16 +96,24 @@ d:\s\作业/
 │   ├── superset_config.py                 # Superset 配置文件
 │   ├── hive_connection.py                # Hive 连接配置
 │   ├── create_datasets.py                 # 自动创建数据集脚本
-│   ├── chart_queries.py                   # 15个预置图表SQL查询
+│   ├── chart_queries.py                   # 预置图表SQL查询
+│   ├── dashboard_config.yaml              # 仪表盘配置
 │   ├── install_superset.sh               # 安装部署脚本
 │   └── README.md                          # Superset 使用指南
 │
 ├── utils/                                 # 工具脚本
 │   ├── data_masking.py                   # 数据脱敏工具
-│   └── data_quality_check.py             # 数据质量监控脚本
+│   ├── data_quality_check.py             # 数据质量监控脚本
+│   └── data_quality_validator.py         # 数据质量校验器
+│
+├── monitor/                               # 监控告警
+│   ├── alert.sh                          # 告警脚本
+│   └── service_monitor.sh                # 服务监控脚本
 │
 ├── docs/                                  # 项目文档
-│   └── sql_optimization.md               # SQL优化指南
+│   ├── ETL流程说明.md                     # ETL流程说明
+│   ├── sql_optimization.md               # SQL优化指南
+│   └── 运维手册.md                        # 运维手册
 │
 ├── *.py                                   # ETL Python 脚本
 │   ├── setup_gmall_mysql_wsl.py         # MySQL 数据初始化
@@ -136,11 +125,12 @@ d:\s\作业/
 │
 ├── *.sh                                   # 启动脚本
 │   ├── start_all.sh                      # 启动所有基础服务
-│   ├── start_kafka.sh                   # 启动 Kafka 生态
-│   ├── start_flume.sh                   # 启动 Flume 采集
-│   └── stop_all.sh                      # 停止所有服务
+│   ├── stop_all.sh                       # 停止所有服务
+│   ├── init_hive.sh                      # Hive初始化脚本
+│   └── setup_hadoop_and_create_dirs.sh   # Hadoop环境配置
 │
 ├── README.md                             # 项目说明文档
+├── 项目完成报告.md                        # 项目完成报告
 └── 验收报告.md                           # 项目验收报告
 ```
 
@@ -151,22 +141,23 @@ d:\s\作业/
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      数据采集层                                │
-│  Flume ──► Kafka ──► Maxwell(MySQL Binlog) ──► DataX          │
+│                DataX (全量/增量同步)                            │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      数据存储层                                │
-│                    HDFS / Hive                                │
+│                    HDFS / Hive (离线批处理)                    │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      数仓分层架构                              │
 │  ODS ──► DIM ──► DWD ──► DWS ──► ADS                          │
+│  (雪花模型 + SCD1/SCD2/SCD3 + 拉链表/快照表)                   │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      数据应用层                                │
-│               Apache Superset (可视化报表/数据大屏)             │
+│    Apache Superset (可视化报表/日报/周报/月报)                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -175,27 +166,38 @@ d:\s\作业/
 ## 核心功能
 
 ### 1. 数据采集
-- **实时采集**：Maxwell 监听 MySQL Binlog，实时同步增量数据到 Kafka
 - **批量采集**：DataX 实现多数据源全量/增量同步
-- **日志采集**：Flume 采集业务日志，写入 HDFS
+- **离线批处理**：纯离线数据同步，每日定时执行
 
 ### 2. 维度建模
-- **拉链表**：用户维度表实现 SCD Type 2 缓慢变化维
-- **日期维度**：预计算 2020-2026 年日期数据
-- **商品维度**：关联品牌、分类等多层级维度
+- **雪花模型**：多层级维度关联，如商品→品类→品牌
+- **SCD缓慢变化维**：支持 SCD1（覆盖更新）、SCD2（拉链表）、SCD3（多版本列）三种模式
+- **多类型维度表**：普通维度、分层维度、拉链表、快照表、累计快照表
 
 ### 3. ETL 流程
 - **数据清洗**：去重、过滤脏数据、格式统一
 - **数据脱敏**：手机号、邮箱、身份证等敏感信息脱敏
 - **指标计算**：GMV、订单量、用户留存等核心指标
 
-### 4. 任务调度
-- **DolphinScheduler**：工作流编排、依赖管理、定时调度
-- **监控告警**：任务失败重试、邮件/短信告警
+### 4. 指标体系
+- **原子指标**：基础度量指标
+- **衍生指标**：基于原子指标计算
+- **复合指标**：多指标组合计算
+- **指标血缘**：完整的指标依赖链路
 
-### 5. 数据可视化
-- **Superset 报表**：GMV日报、转化率分析、商品销售排行
-- **数据大屏**：实时业务监控
+### 5. 任务调度与运维
+- **DolphinScheduler**：复杂工作流编排、跨周期依赖、批量任务运维
+- **监控告警**：任务超时告警、失败自愈、批量重跑机制
+
+### 6. Hive 深度优化
+- **分区裁剪**：高效的数据过滤
+- **索引优化**：提升查询性能
+- **大表Join优化**：MapJoin、BucketJoin等优化策略
+- **数据生命周期管理**：冷热数据分离
+
+### 7. 数据可视化
+- **Superset 报表**：GMV日报、周报、月报，转化率分析、商品销售排行
+- **自助报表**：支持业务人员自主查询分析
 
 ---
 
@@ -293,17 +295,20 @@ datax_user_info ──► datax_order_info ──► datax_order_detail
 通过本项目，您可以掌握：
 
 - ✅ Hadoop HDFS 分布式文件系统使用
-- ✅ Kafka + Maxwell 增量数据采集
-- ✅ Flume 日志采集与数据管道
 - ✅ DataX 多数据源同步
 - ✅ 数据仓库分层架构设计 (ODS → DIM → DWD → DWS → ADS)
-- ✅ 维度建模与拉链表实现
+- ✅ 雪花模型维度建模
+- ✅ SCD缓慢变化维（SCD1/SCD2/SCD3）实现
+- ✅ 拉链表、快照表、累计快照表设计
+- ✅ 指标体系搭建（原子/衍生/复合指标）
 - ✅ ETL 流程开发与优化
+- ✅ Hive 性能优化（分区裁剪、索引、大表Join）
+- ✅ 数据生命周期管理与冷热数据分离
 - ✅ 数据脱敏与安全治理
 - ✅ SQL 优化技巧
-- ✅ DolphinScheduler 任务调度
-- ✅ Apache Superset 数据可视化
-- ✅ 数据质量监控
+- ✅ DolphinScheduler 复杂工作流编排
+- ✅ Apache Superset 数据可视化与报表开发
+- ✅ 数据质量监控与告警机制
 
 ---
 
