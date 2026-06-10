@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!-- Hive Metastore - Remote -->
+  <property>
+    <name>hive.metastore.uris</name>
+    <value>thrift://traffic-hive-metastore:9083</value>
+  </property>
+  <!-- HDFS -->
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://traffic-hdfs-namenode:9000</value>
+  </property>
+  <!-- Disable MapReduce engine - use fetch mode for all reads -->
+  <property>
+    <name>hive.fetch.task.conversion</name>
+    <value>more</value>
+  </property>
+  <property>
+    <name>hive.exec.mode.local.auto</name>
+    <value>true</value>
+  </property>
+  <!-- Disable Tez, use direct fetch -->
+  <property>
+    <name>hive.execution.engine</name>
+    <value>mr</value>
+  </property>
+  <property>
+    <name>mapreduce.framework.name</name>
+    <value>local</value>
+  </property>
+  <!-- Warehouse -->
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>/warehouse/gmall</value>
+  </property>
+  <!-- Auth -->
+  <property>
+    <name>hive.server2.enable.doAs</name>
+    <value>false</value>
+  </property>
+  <property>
+    <name>hive.server2.authentication</name>
+    <value>NONE</value>
+  </property>
+  <!-- Optimizations -->
+  <property>
+    <name>hive.auto.convert.join</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.auto.convert.join.noconditionaltask.size</name>
+    <value>10000000</value>
+  </property>
+  <!-- Metastore -->
+  <property>
+    <name>datanucleus.autoCreateSchema</name>
+    <value>false</value>
+  </property>
+  <property>
+    <name>datanucleus.fixedDatastore</name>
+    <value>true</value>
+  </property>
+</configuration>

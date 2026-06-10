@@ -1,0 +1,30 @@
+services:
+  superset:
+    image: apache/superset:3.1.3
+    container_name: gmall-superset
+    ports:
+      - "8089:8088"
+    environment:
+      - SUPERSET_SECRET_KEY=gmall_superset_secret_key_2024
+      - SUPERSET_ADMIN_USERNAME=admin
+      - SUPERSET_ADMIN_PASSWORD=54088Cnm,
+      - SUPERSET_ADMIN_EMAIL=admin@example.com
+    volumes:
+      - ./superset_config.py:/app/superset_config.py
+    networks:
+      - superset_network
+      - traffic-prod-net
+    restart: unless-stopped
+    command: >
+      bash -c "
+        superset fab create-admin --username admin --password 54088Cnm, --firstname Admin --lastname User --email admin@example.com && \
+        superset db upgrade && \
+        superset init && \
+        superset run -p 8088 --host 0.0.0.0 --with-threads --reload --debugger
+      "
+
+networks:
+  superset_network:
+    driver: bridge
+  traffic-prod-net:
+    external: true
