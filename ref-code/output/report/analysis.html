@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电商用户行为分析报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        neutral: '#1F2937',
+                        "neutral-light": '#4B5563',
+                        "neutral-lighter": '#E5E7EB',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-shadow {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .gradient-bg {
+                background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-neutral">
+    <!-- 顶部导航 -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fa fa-bar-chart text-3xl mr-3"></i>
+                    <h1 class="text-2xl md:text-3xl font-bold">电商用户行为分析报告</h1>
+                </div>
+                <div class="text-sm opacity-80">
+                    <p>分析日期: 2026年06月22日</p>
+                    <p>数据范围: 2025-06-23 至 2025-06-04</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- 概览卡片 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-6 text-neutral">数据概览</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white rounded-xl p-6 card-shadow transform hover:scale-105 transition-all duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-primary/10 p-3 rounded-lg mr-4">
+                            <i class="fa fa-users text-primary text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-neutral-light text-sm">总用户数</p>
+                            <p class="text-3xl font-bold">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 card-shadow transform hover:scale-105 transition-all duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-secondary/10 p-3 rounded-lg mr-4">
+                            <i class="fa fa-shopping-bag text-secondary text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-neutral-light text-sm">总商品数</p>
+                            <p class="text-3xl font-bold">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 card-shadow transform hover:scale-105 transition-all duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-accent/10 p-3 rounded-lg mr-4">
+                            <i class="fa fa-mouse-pointer text-accent text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-neutral-light text-sm">总操作次数</p>
+                            <p class="text-3xl font-bold">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 card-shadow transform hover:scale-105 transition-all duration-300">
+                    <div class="flex items-center">
+                        <div class="bg-neutral/10 p-3 rounded-lg mr-4">
+                            <i class="fa fa-file-text-o text-neutral text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-neutral-light text-sm">数据完整率</p>
+                            <p class="text-3xl font-bold">96.00%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 行为分析 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-6 text-neutral">用户行为分析</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 行为类型分布 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-semibold mb-4">行为类型分布</h3>
+                    <div class="h-80">
+                        <canvas id="actionTypeChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 时段活跃度分析 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-semibold mb-4">时段活跃度分析</h3>
+                    <div class="h-80">
+                        <canvas id="hourlyActivityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 商品分析 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-6 text-neutral">商品分析</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 热门商品 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-semibold mb-4">热门商品TOP5</h3>
+                    <div class="h-80">
+                        <canvas id="topProductsChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 类别转化率 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-semibold mb-4">商品类别转化率</h3>
+                    <div class="h-80">
+                        <canvas id="conversionRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 行为路径分析 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-6 text-neutral">用户行为路径分析</h2>
+            <div class="bg-white rounded-xl p-6 card-shadow">
+                <h3 class="text-xl font-semibold mb-4">常见行为序列</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">行为序列</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出现次数</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">1</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">view_product -> view_product -> view_product -> view_product -> purchase</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">2</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">view_product -> view_product -> view_product -> purchase -> purchase -> view_product -> view_product</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">3</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">view_product -> view_product -> view_product -> purchase -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">4</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product -> view_product -> purchase</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">5</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">view_product -> view_product -> purchase -> view_product -> view_product -> purchase -> add_to_cart -> view_product</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
+</tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 异常检测 -->
+        <section class="mb-10">
+            <h2 class="text-2xl font-bold mb-6 text-neutral">异常行为检测</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- 高频操作用户 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-semibold mb-4">高频操作用户</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作次数</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">未检测到高频操作用户</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- 可疑IP -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h3 class="text-xl font-semibold mb-4">可疑IP地址</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP地址</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作次数</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">192.168.1.59</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">9</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">192.168.1.229</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">9</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">192.168.1.206</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">9</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">192.168.1.195</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">9</td>
+</tr>
+<tr class="hover:bg-gray-50">
+  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">192.168.1.125</td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">9</td>
+</tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-neutral text-white py-8 mt-10">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-xl font-bold mb-2">电商用户行为分析系统</h2>
+                    <p class="text-gray-400 text-sm">基于Shell脚本的数据分析解决方案</p>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <p>© 2026 数据分析报告</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. 行为类型分布图表
+            const actionTypeCtx = document.getElementById('actionTypeChart').getContext('2d');
+            new Chart(actionTypeCtx, {
+                type: 'pie',
+                data: {
+                    labels: ["purchase","view_product","add_to_cart"],
+                    datasets: [{
+                        data: [338,312,311],
+                        backgroundColor: [
+                            '#3B82F6', // primary
+                            '#10B981', // secondary
+                            '#F59E0B', // accent
+                            '#EF4444', // red
+                            '#8B5CF6'  // purple
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: '行为类型分布占比'
+                        }
+                    }
+                }
+            });
+
+            // 2. 时段活跃度分析图表
+            const hourlyActivityCtx = document.getElementById('hourlyActivityChart').getContext('2d');
+            new Chart(hourlyActivityCtx, {
+                type: 'bar',
+                data: {
+                    labels: ["00时","01时","02时","03时","04时","05时","06时","07时","08时","09时","10时","11时","12时","13时","14时","15时","16时","17时","18时","19时","20时","21时","22时","23时",],
+                    datasets: [{
+                        label: '操作次数',
+                        data: [0,1,2,3,4,5,6,7,8,9,42,40,47,39,39,45,41,40,45,43,40,40,44,38],
+                        backgroundColor: '#3B82F6',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '小时'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '操作次数'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '用户活跃度按小时分布'
+                        }
+                    }
+                }
+            });
+
+            // 3. 热门商品图表
+            const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+            new Chart(topProductsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ["product2","product12","product31","product22","product9"],
+                    datasets: [{
+                        label: '浏览次数',
+                        data: [27,27,26,26,25],
+                        backgroundColor: '#10B981',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', // 水平条形图
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '浏览次数'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '商品'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '热门商品TOP5'
+                        }
+                    }
+                }
+            });
+
+            // 4. 转化率图表
+            const conversionRateCtx = document.getElementById('conversionRateChart').getContext('2d');
+            new Chart(conversionRateCtx, {
+                type: 'bar',
+                data: {
+                    labels: ["食品","美妆","电子产品","运动器材","服饰","家居用品","图书"],
+                    datasets: [{
+                        label: '转化率(%)',
+                        data: [84.00,107.00,123.00,118.00,93.00,119.00,140.00],
+                        backgroundColor: '#F59E0B',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '商品类别'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '转化率(%)'
+                            },
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '商品类别转化率分析'
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+purchase -> purchase -> add_to_cart -> purchase -> view_product -> view_product -> view_product
+purchase -> view_product -> view_product -> add_to_cart -> purchase -> purchase -> view_product -> purchase
+purchase -> add_to_cart -> view_product -> purchase -> purchase -> add_to_cart -> purchase -> add_to_cart -> purchase -> purchase -> add_to_cart -> add_to_cart
+view_product -> view_product -> purchase -> view_product -> view_product -> purchase -> add_to_cart -> view_product
+add_to_cart -> purchase -> view_product -> add_to_cart -> add_to_cart -> add_to_cart -> view_product -> add_to_cart -> purchase
+purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> purchase -> view_product -> purchase
+view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product -> view_product -> purchase
+purchase -> view_product -> add_to_cart -> view_product -> purchase -> view_product -> purchase -> view_product -> purchase -> view_product
+purchase -> view_product -> purchase -> add_to_cart -> add_to_cart -> view_product -> add_to_cart -> add_to_cart -> view_product -> view_product
+purchase -> purchase -> purchase -> add_to_cart -> purchase -> purchase -> add_to_cart -> add_to_cart -> purchase -> view_product -> view_product -> add_to_cart -> add_to_cart
+view_product -> add_to_cart -> purchase -> view_product -> add_to_cart
+view_product -> view_product -> view_product -> purchase -> purchase -> view_product -> view_product
+view_product -> purchase -> add_to_cart -> view_product -> purchase -> purchase -> view_product -> view_product -> purchase -> add_to_cart -> purchase
+view_product -> view_product -> add_to_cart -> add_to_cart -> add_to_cart -> add_to_cart -> add_to_cart -> add_to_cart -> view_product -> add_to_cart
+view_product -> add_to_cart -> purchase -> view_product -> purchase -> add_to_cart -> purchase -> view_product -> view_product -> purchase -> add_to_cart -> add_to_cart -> view_product -> purchase -> view_product -> add_to_cart
+view_product -> purchase -> view_product -> purchase -> view_product -> add_to_cart
+add_to_cart -> view_product -> purchase -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> purchase -> view_product
+add_to_cart -> view_product -> view_product -> view_product -> view_product -> purchase -> add_to_cart -> purchase
+view_product -> view_product -> purchase -> purchase -> add_to_cart -> view_product -> add_to_cart -> add_to_cart -> view_product -> view_product -> add_to_cart -> view_product -> view_product
+view_product -> view_product -> purchase -> purchase -> purchase -> view_product -> purchase -> view_product -> purchase -> purchase -> add_to_cart -> add_to_cart
+purchase -> purchase -> view_product -> view_product -> add_to_cart -> purchase -> view_product -> purchase
+add_to_cart -> purchase -> view_product -> purchase -> purchase -> view_product -> add_to_cart -> view_product -> purchase
+view_product -> purchase -> add_to_cart -> add_to_cart -> purchase -> purchase -> view_product -> view_product -> add_to_cart -> view_product -> purchase
+purchase -> purchase -> add_to_cart -> purchase -> add_to_cart -> add_to_cart -> view_product -> view_product -> add_to_cart -> add_to_cart
+view_product -> view_product -> purchase -> purchase -> view_product -> purchase -> add_to_cart -> view_product
+purchase -> purchase -> view_product -> view_product -> add_to_cart -> purchase -> purchase -> add_to_cart -> add_to_cart -> purchase
+add_to_cart -> add_to_cart -> view_product -> view_product -> view_product -> view_product -> purchase -> view_product -> add_to_cart -> add_to_cart -> add_to_cart
+view_product -> add_to_cart -> add_to_cart -> purchase -> view_product -> purchase -> add_to_cart -> purchase -> purchase -> purchase -> add_to_cart
+view_product -> view_product -> add_to_cart -> purchase -> purchase -> add_to_cart -> add_to_cart -> add_to_cart
+purchase -> purchase -> purchase -> view_product -> view_product -> purchase -> add_to_cart -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> purchase -> purchase -> add_to_cart -> add_to_cart
+view_product -> add_to_cart -> purchase -> add_to_cart -> purchase -> add_to_cart -> view_product -> add_to_cart -> add_to_cart -> view_product -> add_to_cart
+add_to_cart -> purchase -> purchase -> view_product -> view_product -> view_product -> view_product -> add_to_cart -> purchase -> purchase -> view_product -> view_product
+add_to_cart -> view_product -> purchase -> add_to_cart -> add_to_cart -> add_to_cart -> add_to_cart -> view_product
+view_product -> purchase -> purchase -> purchase -> view_product -> view_product -> add_to_cart -> view_product -> view_product
+view_product -> add_to_cart -> add_to_cart -> view_product -> view_product -> purchase -> add_to_cart -> view_product -> view_product -> view_product -> view_product -> view_product -> view_product
+view_product -> add_to_cart -> purchase -> view_product -> view_product -> add_to_cart -> purchase -> add_to_cart -> view_product -> view_product
+purchase -> purchase -> view_product -> purchase -> view_product -> view_product -> view_product
+purchase -> purchase -> add_to_cart -> purchase -> add_to_cart -> view_product -> view_product -> purchase -> view_product
+add_to_cart -> view_product -> view_product -> view_product -> add_to_cart -> add_to_cart -> purchase -> view_product
+view_product -> add_to_cart -> view_product -> purchase -> add_to_cart -> purchase -> purchase -> purchase -> purchase -> purchase -> purchase -> view_product
+add_to_cart -> add_to_cart -> add_to_cart -> view_product -> view_product -> purchase -> purchase
+add_to_cart -> purchase -> add_to_cart -> add_to_cart -> view_product -> add_to_cart -> view_product -> add_to_cart -> add_to_cart -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> add_to_cart
+view_product -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> purchase -> purchase -> view_product -> add_to_cart
+add_to_cart -> purchase -> purchase -> view_product -> view_product -> purchase -> view_product -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> add_to_cart
+add_to_cart -> add_to_cart -> add_to_cart -> purchase -> view_product -> view_product -> add_to_cart -> add_to_cart -> purchase
+purchase -> purchase -> view_product -> purchase -> add_to_cart -> purchase -> purchase -> view_product
+add_to_cart -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> purchase
+purchase -> purchase -> purchase -> add_to_cart -> view_product -> view_product -> add_to_cart -> view_product -> purchase
+add_to_cart -> view_product -> add_to_cart -> view_product -> view_product -> add_to_cart
+view_product -> purchase -> view_product -> purchase -> add_to_cart -> add_to_cart -> view_product -> purchase -> purchase
+purchase -> purchase -> view_product -> add_to_cart -> add_to_cart -> add_to_cart -> view_product -> view_product -> purchase
+add_to_cart -> add_to_cart -> view_product -> view_product -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> view_product -> purchase -> purchase -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> add_to_cart
+add_to_cart -> purchase -> view_product -> purchase -> view_product -> add_to_cart -> purchase -> add_to_cart -> purchase -> purchase
+purchase -> purchase -> add_to_cart -> purchase -> purchase -> add_to_cart -> purchase -> purchase -> purchase -> view_product -> purchase -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> add_to_cart
+add_to_cart -> view_product -> view_product -> add_to_cart -> purchase -> view_product -> purchase -> add_to_cart -> purchase -> view_product -> view_product -> add_to_cart -> purchase
+purchase -> add_to_cart -> add_to_cart -> purchase -> add_to_cart
+view_product -> view_product -> purchase -> view_product -> purchase -> add_to_cart -> purchase -> add_to_cart -> add_to_cart -> add_to_cart
+add_to_cart -> view_product -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> add_to_cart -> purchase
+view_product -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> view_product -> purchase -> purchase -> add_to_cart
+add_to_cart -> view_product -> view_product -> add_to_cart -> view_product -> add_to_cart -> purchase -> purchase
+add_to_cart -> purchase -> add_to_cart -> add_to_cart
+purchase -> view_product -> purchase -> add_to_cart -> purchase -> view_product -> add_to_cart
+add_to_cart -> add_to_cart -> purchase -> add_to_cart -> purchase -> purchase -> view_product
+view_product -> purchase -> purchase -> add_to_cart -> add_to_cart -> purchase -> view_product -> purchase -> purchase -> add_to_cart -> add_to_cart -> purchase -> purchase -> view_product -> view_product -> view_product -> add_to_cart
+add_to_cart -> purchase -> view_product -> view_product -> add_to_cart -> add_to_cart -> purchase -> purchase -> view_product -> purchase -> add_to_cart -> purchase -> view_product -> view_product
+add_to_cart -> view_product -> purchase -> view_product -> add_to_cart
+view_product -> view_product -> view_product -> purchase -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product
+view_product -> view_product -> view_product -> view_product -> purchase
+purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> view_product -> purchase -> purchase -> add_to_cart -> view_product -> add_to_cart
+view_product -> add_to_cart -> purchase -> add_to_cart -> view_product -> add_to_cart -> purchase -> purchase -> purchase
+view_product -> purchase -> purchase -> view_product -> add_to_cart -> view_product -> purchase -> view_product -> view_product -> view_product -> view_product
+view_product -> add_to_cart -> purchase -> purchase -> purchase -> view_product -> add_to_cart -> purchase -> add_to_cart -> purchase -> view_product -> view_product -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product
+purchase -> purchase -> view_product -> purchase -> purchase -> purchase
+add_to_cart -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> view_product -> view_product -> view_product
+view_product -> add_to_cart -> purchase -> purchase -> add_to_cart
+view_product -> add_to_cart -> purchase -> purchase -> add_to_cart -> purchase
+view_product -> view_product -> purchase -> purchase -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> add_to_cart -> purchase -> add_to_cart -> add_to_cart -> add_to_cart
+view_product -> purchase -> purchase -> add_to_cart -> add_to_cart
+add_to_cart -> view_product -> add_to_cart -> view_product -> view_product -> view_product -> purchase -> view_product -> view_product -> add_to_cart -> view_product -> add_to_cart -> view_product -> purchase
+purchase -> view_product -> purchase -> view_product -> add_to_cart -> view_product -> add_to_cart -> purchase -> view_product -> add_to_cart
+view_product -> add_to_cart -> purchase -> view_product -> purchase -> purchase -> view_product -> purchase -> purchase -> view_product -> view_product -> view_product -> add_to_cart -> purchase -> view_product
+purchase -> view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product -> purchase -> purchase -> add_to_cart -> view_product -> add_to_cart -> purchase -> purchase -> view_product -> purchase
+add_to_cart -> view_product -> add_to_cart -> purchase -> add_to_cart -> view_product -> purchase -> add_to_cart -> view_product -> view_product
+purchase -> view_product -> add_to_cart -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> add_to_cart -> view_product -> purchase -> add_to_cart
+purchase -> add_to_cart -> purchase -> purchase -> purchase -> view_product -> purchase -> purchase
+add_to_cart -> view_product -> add_to_cart -> purchase -> add_to_cart -> purchase -> view_product
+purchase -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> purchase -> purchase -> purchase -> purchase
+view_product -> add_to_cart -> add_to_cart -> purchase -> purchase -> purchase -> add_to_cart -> purchase -> view_product -> purchase -> purchase -> purchase -> view_product
+purchase -> view_product -> add_to_cart -> purchase -> add_to_cart -> view_product -> purchase -> purchase -> add_to_cart -> purchase
+purchase -> add_to_cart -> view_product -> purchase -> view_product -> purchase -> view_product -> purchase -> purchase -> view_product -> add_to_cart -> purchase
+add_to_cart -> add_to_cart -> view_product
+add_to_cart -> add_to_cart -> add_to_cart -> purchase -> add_to_cart -> add_to_cart -> purchase
+purchase -> purchase -> add_to_cart -> purchase -> purchase -> purchase -> view_product -> add_to_cart -> add_to_cart -> add_to_cart
+add_to_cart -> view_product -> view_product -> view_product
+purchase -> view_product -> view_product -> view_product -> add_to_cart
+add_to_cart -> view_product -> view_product -> view_product -> add_to_cart -> add_to_cart -> view_product -> view_product -> purchase
+add_to_cart -> view_product -> view_product -> view_product -> view_product -> view_product -> purchase
+add_to_cart -> purchase -> add_to_cart -> add_to_cart -> add_to_cart
+add_to_cart -> purchase -> view_product -> add_to_cart -> add_to_cart -> add_to_cart -> add_to_cart -> purchase -> view_product -> add_to_cart -> purchase -> purchase
+add_to_cart -> add_to_cart -> view_product -> purchase -> view_product -> view_product -> view_product

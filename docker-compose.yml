@@ -1,0 +1,276 @@
+version: "3.8"
+
+# ============================================================
+# gmall 电商大数据平台 - Docker Compose 编排
+# Hadoop(HDFS/YARN) + Zookeeper + Hive + MySQL + Spark + Superset
+# ============================================================
+
+services:
+  # ==================== HDFS Core ====================
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: unless-stopped
+    hostname: namenode
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=gmall
+    env_file:
+      - ./conf/hadoop.env
+    networks:
+      - gmall-net
+    mem_limit: 1024m
+
+  datanode1:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode1
+    restart: unless-stopped
+    hostname: datanode1
+    volumes:
+      - hadoop_datanode1:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./conf/hadoop.env
+    ports:
+      - "9864:9864"
+    networks:
+      - gmall-net
+    mem_limit: 512m
+
+  datanode2:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode2
+    restart: unless-stopped
+    hostname: datanode2
+    volumes:
+      - hadoop_datanode2:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./conf/hadoop.env
+    ports:
+      - "9865:9864"
+    networks:
+      - gmall-net
+    mem_limit: 512m
+
+  # ==================== YARN ====================
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: unless-stopped
+    hostname: resourcemanager
+    ports:
+      - "8088:8088"
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode1:9864 datanode2:9865"
+    env_file:
+      - ./conf/hadoop.env
+    networks:
+      - gmall-net
+    mem_limit: 512m
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: unless-stopped
+    hostname: nodemanager
+    ports:
+      - "8042:8042"
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode1:9864 datanode2:9865 resourcemanager:8088"
+    env_file:
+      - ./conf/hadoop.env
+    networks:
+      - gmall-net
+    mem_limit: 1024m
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    volumes:
+      - hadoop_historyserver:/hadoop/yarn/timeline
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode1:9864 datanode2:9865 resourcemanager:8088"
+    env_file:
+      - ./conf/hadoop.env
+    networks:
+      - gmall-net
+    mem_limit: 256m
+
+  # ==================== Zookeeper ====================
+  zookeeper:
+    image: bitnami/zookeeper:3.8
+    container_name: zookeeper
+    restart: unless-stopped
+    hostname: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    networks:
+      - gmall-net
+    mem_limit: 256m
+
+  # ==================== Hive Metastore ====================
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    container_name: hive-metastore-postgresql
+    restart: unless-stopped
+    hostname: hive-metastore-postgresql
+    networks:
+      - gmall-net
+    mem_limit: 256m
+
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-metastore
+    restart: unless-stopped
+    hostname: hive-metastore
+    env_file:
+      - ./conf/hadoop-hive.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode1:9864 datanode2:9865 hive-metastore-postgresql:5432"
+    command: /opt/hive/bin/hive --service metastore
+    ports:
+      - "9083:9083"
+    networks:
+      - gmall-net
+    mem_limit: 512m
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-server
+    restart: unless-stopped
+    hostname: hive-server
+    env_file:
+      - ./conf/hadoop-hive.env
+    environment:
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore-postgresql/metastore"
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    networks:
+      - gmall-net
+    mem_limit: 1024m
+
+  # ==================== MySQL ====================
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    hostname: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./conf/mysql/init.sql:/docker-entrypoint-initdb.d/01-gmall-init.sql:ro
+      - ./sql:/docker-entrypoint-initdb.d/02-ads-schema:ro
+      - ./conf/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - gmall-net
+    mem_limit: 1024m
+
+  # ==================== Spark Standalone ====================
+  spark-master:
+    image: bitnami/spark:3.5
+    container_name: spark-master
+    restart: unless-stopped
+    hostname: spark-master
+    ports:
+      - "7077:7077"
+      - "18080:8080"
+    environment:
+      SPARK_MODE: "master"
+      SPARK_MASTER_HOST: "spark-master"
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    networks:
+      - gmall-net
+    mem_limit: 512m
+
+  spark-worker:
+    image: bitnami/spark:3.5
+    container_name: spark-worker
+    restart: unless-stopped
+    hostname: spark-worker
+    ports:
+      - "18081:8081"
+    environment:
+      SPARK_MODE: "worker"
+      SPARK_MASTER_URL: "spark://spark-master:7077"
+      SPARK_WORKER_MEMORY: "1g"
+      SPARK_WORKER_CORES: "2"
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+      SPARK_PUBLIC_DNS: "spark-worker"
+    depends_on:
+      - spark-master
+    networks:
+      - gmall-net
+    mem_limit: 1024m
+
+  # ==================== Superset ====================
+  superset:
+    image: apache/superset:3.1
+    container_name: superset
+    restart: unless-stopped
+    hostname: superset
+    ports:
+      - "8089:8088"
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY}
+      SUPERSET_LOAD_EXAMPLES: "no"
+      DATABASE_HOST: mysql
+      DATABASE_PORT: "3306"
+      DATABASE_DB: gmall
+      DATABASE_USER: ${MYSQL_USER}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - superset_data:/app/superset_home
+      - ./superset/superset_config.py:/app/pythonpath/superset_config.py:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - gmall-net
+    mem_limit: 1024m
+
+# ==================== Networks ====================
+networks:
+  gmall-net:
+    name: gmall-net
+    driver: bridge
+
+# ==================== Volumes ====================
+volumes:
+  hadoop_namenode:
+  hadoop_datanode1:
+  hadoop_datanode2:
+  hadoop_historyserver:
+  mysql_data:
+  superset_data:

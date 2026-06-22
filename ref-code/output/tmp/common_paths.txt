@@ -1,0 +1,5 @@
+      1 view_product -> view_product -> view_product -> view_product -> purchase
+      1 view_product -> view_product -> view_product -> purchase -> purchase -> view_product -> view_product
+      1 view_product -> view_product -> view_product -> purchase -> purchase -> purchase -> purchase -> add_to_cart -> add_to_cart -> view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product
+      1 view_product -> view_product -> view_product -> purchase -> add_to_cart -> view_product -> view_product -> purchase
+      1 view_product -> view_product -> purchase -> view_product -> view_product -> purchase -> add_to_cart -> view_product

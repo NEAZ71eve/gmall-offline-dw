@@ -1,0 +1,3 @@
+    338 purchase
+    312 view_product
+    311 add_to_cart

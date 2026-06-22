@@ -1,88 +1,33 @@
-# Compiled class files
-*.class
-
-# Log files
-*.log
-logs/
-
-# Hadoop/Hive temporary files
-tmp/
-temp/
-*.tmp
-*.swp
-
-# IDE files
-.vscode/
-.idea/
-*.iml
-*.ipr
-*.iws
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Build artifacts
-*.jar
-*.war
-*.ear
-
-# Python cache
+# Python
+venv/
 __pycache__/
 *.pyc
 *.pyo
 
-# Node modules
-node_modules/
+# Docker volumes
+docker/volumes/
 
-# Environment variables
-.env
-.env.local
-.env.*.local
+# IDE
+.idea/
+*.swp
+*.swo
 
-# Database files
-*.sql
-*.sqlite
-*.db
+# Logs
+*.log
+derby.log
 
-# Docker
-docker-compose.override.yml
+# MySQL connector
+mysql-connector-java-*.jar
 
-# Maven/Gradle
-target/
-build/
-*.jar
-
-# Hadoop data directories
-hadoop_data/
-warehouse/
-
-# SSL certificates
-*.pem
-*.key
-*.crt
-
-# Backup files
-*.bak
-*.backup
-*.old
-
-# Test files
-test-output/
-*.testresult
-
-# Hive Derby metastore
+# Metastore (legacy)
 metastore_db/
 
-# Docker generated files
-.docker/
-*.tar.gz
-*.tgz
+# superset local
+.superset/
 
-# Temporary ETL files
-/tmp/
-*.tsv
+# OS
+.DS_Store
+Thumbs.db
 
-# Documentation build
-_site/
-*.md.bak
+# trae
+.trae/
