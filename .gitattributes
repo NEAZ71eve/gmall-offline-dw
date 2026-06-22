@@ -1,0 +1,24 @@
+# Enforce LF line endings for all text files (VM Linux compatibility)
+* text=auto eol=lf
+
+# Scripts must be executable on checkout
+*.sh text eol=lf
+*.py text eol=lf
+
+# Config files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.env text eol=lf
+*.cnf text eol=lf
+*.sql text eol=lf
+*.sql text eol=lf
+
+# Binary / non-convertible
+*.jar binary
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.zip binary
+*.gz binary
+*.db binary
